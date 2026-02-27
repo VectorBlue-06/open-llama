@@ -1,0 +1,30 @@
+# Build output
+bin/
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+*.exe
+*.test
+*.out
+
+# Server binaries (added at build time)
+assets/server/llama-server*
+!assets/server/.gitkeep
+!assets/server/README.md
+
+# Logs
+*.log
+
+# Temporary
+tmp/
