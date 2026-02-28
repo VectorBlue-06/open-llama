@@ -30,6 +30,7 @@ type App struct {
 	ctxMgr   *ctx.Manager
 	metrics  *metrics.Collector
 	uiModel  ui.Model
+	program  *tea.Program
 	modelList []models.ModelInfo
 	currentModel string
 }
@@ -67,10 +68,20 @@ func (a *App) Run() error {
 		hardware.RecommendGPULayers(hw))
 
 	// 3. Scan models
-	modelsDir := config.ExpandPath(a.cfg.Model.ModelsDir)
+	modelsDir := config.ResolveModelsDir(a.cfg.Model.ModelsDir)
 	a.modelList, err = models.ScanModels(modelsDir)
 	if err != nil {
 		a.logger.Warn("model scan failed: %v", err)
+	}
+	if len(a.modelList) == 0 {
+		legacyModelsDir := config.ExpandPath("~/.openllama/models")
+		if legacyModelsDir != modelsDir {
+			legacyModels, legacyErr := models.ScanModels(legacyModelsDir)
+			if legacyErr == nil && len(legacyModels) > 0 {
+				a.logger.Info("using legacy models directory: %s", legacyModelsDir)
+				a.modelList = legacyModels
+			}
+		}
 	}
 	a.logger.Info("models found: %d", len(a.modelList))
 
@@ -108,7 +119,8 @@ func (a *App) Run() error {
 	binaryPath, err := server.FindBinary(appDir)
 	if err != nil {
 		a.logger.Error("server binary not found: %v", err)
-		// Still launch UI but show error
+		a.uiModel.SetError(err)
+		a.uiModel.ShowWelcome()
 		return a.runUI()
 	}
 
@@ -173,9 +185,16 @@ func (a *App) Run() error {
 }
 
 func (a *App) runUI() error {
-	p := tea.NewProgram(a.uiModel, tea.WithAltScreen())
-	_, err := p.Run()
+	a.program = tea.NewProgram(a.uiModel, tea.WithAltScreen())
+	_, err := a.program.Run()
+	a.program = nil
 	return err
+}
+
+func (a *App) sendUI(msg tea.Msg) {
+	if a.program != nil {
+		a.program.Send(msg)
+	}
 }
 
 func (a *App) selectModel() models.ModelInfo {
@@ -197,6 +216,7 @@ func (a *App) selectModel() models.ModelInfo {
 
 func (a *App) handleSend(text string) {
 	if a.engine == nil {
+		a.sendUI(ui.StreamErrorMsg{Err: fmt.Errorf("chat engine not initialized")})
 		return
 	}
 
@@ -214,15 +234,33 @@ func (a *App) handleSend(text string) {
 	ch, err := a.engine.Send(bgCtx, prompt)
 	if err != nil {
 		a.logger.Error("send failed: %v", err)
+		a.sendUI(ui.StreamErrorMsg{Err: err})
 		return
 	}
 
 	// Stream tokens
 	go func() {
 		var fullContent string
+		var timings *chat.Timings
 		for token := range ch {
-			fullContent += token.Content
+			if token.Content != "" {
+				a.sendUI(ui.StreamChunkMsg{Content: token.Content})
+				fullContent += token.Content
+			}
+			if token.Timings != nil {
+				timings = token.Timings
+			}
 		}
+
+		a.sendUI(ui.StreamDoneMsg{
+			FullContent: fullContent,
+			Timings:     timings,
+		})
+
+		if fullContent == "" {
+			return
+		}
+
 		// Add assistant message to context
 		a.ctxMgr.Add(templates.Message{
 			Role:    templates.RoleAssistant,

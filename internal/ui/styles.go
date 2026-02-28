@@ -26,7 +26,13 @@ var (
 			Foreground(ColorUser).
 			Bold(true)
 
+	UserTextStyle = lipgloss.NewStyle().
+			Foreground(ColorUser)
+
 	AssistantMsgStyle = lipgloss.NewStyle().
+				Foreground(ColorAssistant)
+
+	AssistantTextStyle = lipgloss.NewStyle().
 				Foreground(ColorAssistant)
 
 	ErrorStyle = lipgloss.NewStyle().

@@ -4,7 +4,7 @@
 
 **Local AI in your terminal. Fast, private, zero setup.**
 
-[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go&logoColor=white)](https://go.dev)
+[![Go](https://img.shields.io/badge/Go-1.24.13+-00ADD8?style=flat&logo=go&logoColor=white)](https://go.dev)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-blue?style=flat)]()
 
@@ -32,10 +32,10 @@ Runs 100% locally — no internet, no telemetry, no cloud.
 
 ```bash
 # 1. Place a GGUF model
-mkdir -p ~/.openllama/models
-cp your-model.gguf ~/.openllama/models/
+mkdir -p runtime/models
+cp your-model.gguf runtime/models/
 
-# 2. Place llama-server alongside the binary
+# 2. Place llama-server in runtime/llama.cpp/ (next to the binary)
 
 # 3. Run
 ./openllama
@@ -46,6 +46,7 @@ cp your-model.gguf ~/.openllama/models/
 | Key | Action |
 |-----|--------|
 | `Enter` | Send message |
+| `Shift+Enter` | New line in input |
 | `Esc` | Cancel / Close |
 | `Ctrl+N` | New chat |
 | `Ctrl+M` | Switch model |

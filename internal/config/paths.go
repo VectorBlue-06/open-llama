@@ -8,6 +8,7 @@ import (
 )
 
 const appDirName = ".openllama"
+const legacyModelsDir = "~/.openllama/models"
 
 // AppDir returns the base application directory (~/.openllama/).
 func AppDir() (string, error) {
@@ -55,11 +56,61 @@ func ExpandPath(path string) string {
 	return path
 }
 
+// RuntimeDirs returns runtime directories near the openllama executable.
+// Search order:
+// 1. <exe_dir>/runtime
+// 2. <exe_dir>/../runtime (useful when binary is in ./bin)
+func RuntimeDirs() []string {
+	exePath, err := os.Executable()
+	if err != nil {
+		return []string{filepath.Join("runtime")}
+	}
+
+	exeDir := filepath.Dir(exePath)
+	parentDir := filepath.Dir(exeDir)
+	if strings.EqualFold(filepath.Base(exeDir), "bin") {
+		return []string{filepath.Join(parentDir, "runtime"), filepath.Join(exeDir, "runtime")}
+	}
+
+	dirs := []string{filepath.Join(exeDir, "runtime")}
+	parentRuntime := filepath.Join(parentDir, "runtime")
+	if parentRuntime != dirs[0] {
+		dirs = append(dirs, parentRuntime)
+	}
+	return dirs
+}
+
+// PrimaryRuntimeDir returns the preferred runtime directory.
+func PrimaryRuntimeDir() string {
+	return RuntimeDirs()[0]
+}
+
+// ResolveModelsDir returns the effective models directory.
+// If modelsDir is empty or legacy default, runtime/models near the executable is preferred.
+func ResolveModelsDir(modelsDir string) string {
+	normalized := strings.TrimSpace(modelsDir)
+	if normalized == "" || normalized == legacyModelsDir {
+		for _, runtimeDir := range RuntimeDirs() {
+			candidate := filepath.Join(runtimeDir, "models")
+			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+				return candidate
+			}
+		}
+		return filepath.Join(RuntimeDirs()[0], "models")
+	}
+
+	return ExpandPath(normalized)
+}
+
 // EnsureDirectories creates all necessary application directories.
 func EnsureDirectories(cfg *Config) error {
+	modelsDir := ResolveModelsDir(cfg.Model.ModelsDir)
+	runtimeDir := PrimaryRuntimeDir()
 	dirs := []string{
 		ExpandPath("~/.openllama"),
-		ExpandPath(cfg.Model.ModelsDir),
+		runtimeDir,
+		filepath.Join(runtimeDir, "llama.cpp"),
+		modelsDir,
 		ExpandPath(cfg.Session.SessionsDir),
 		ExpandPath("~/.openllama/tmp"),
 		ExpandPath("~/.openllama/bin"),

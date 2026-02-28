@@ -5,6 +5,7 @@ import "github.com/charmbracelet/bubbles/key"
 // KeyMap defines all keyboard shortcuts.
 type KeyMap struct {
 	Send           key.Binding
+	NewLine        key.Binding
 	NewChat        key.Binding
 	ModelPicker    key.Binding
 	TemplatePicker key.Binding
@@ -29,6 +30,10 @@ func DefaultKeyMap() KeyMap {
 		Send: key.NewBinding(
 			key.WithKeys("enter"),
 			key.WithHelp("enter", "send"),
+		),
+		NewLine: key.NewBinding(
+			key.WithKeys("shift+enter", "alt+enter"),
+			key.WithHelp("shift+enter", "newline"),
 		),
 		NewChat: key.NewBinding(
 			key.WithKeys("ctrl+n"),

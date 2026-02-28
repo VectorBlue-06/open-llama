@@ -125,6 +125,11 @@ func (m *Model) ShowLoading() {
 	m.showOverlay = OverlayLoading
 }
 
+// SetError sets the current UI error message.
+func (m *Model) SetError(err error) {
+	m.err = err
+}
+
 // AddChatMessage adds a message to the chat view.
 func (m *Model) AddChatMessage(role, content string) {
 	m.messages = append(m.messages, ChatMessage{Role: role, Content: content})
@@ -154,3 +159,10 @@ func (m Model) Init() tea.Cmd {
 
 // Ensure Model implements tea.Model at compile time.
 var _ tea.Model = Model{}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}

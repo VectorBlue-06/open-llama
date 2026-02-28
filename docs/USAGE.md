@@ -19,14 +19,15 @@ Download a GGUF model file from [HuggingFace](https://huggingface.co). Recommend
 ### 3. Place the Model
 
 ```bash
-mkdir -p ~/.openllama/models
-cp your-model.gguf ~/.openllama/models/
+mkdir -p runtime/models
+cp your-model.gguf runtime/models/
 ```
 
 ### 4. Get llama-server
 
 Download the llama-server binary from [llama.cpp releases](https://github.com/ggerganov/llama.cpp/releases) and place it:
-- Next to the `openllama` binary (recommended), or
+- In `runtime/llama.cpp/` next to the `openllama` binary (recommended), or
+- Next to the `openllama` binary, or
 - In `~/.openllama/bin/`, or
 - Anywhere in your `PATH`
 
@@ -41,6 +42,7 @@ Download the llama-server binary from [llama.cpp releases](https://github.com/gg
 | Key | Action |
 |-----|--------|
 | `Enter` | Send message |
+| `Shift+Enter` | New line in input |
 | `Esc` | Cancel streaming / close overlay |
 | `Ctrl+N` | New conversation |
 | `Ctrl+M` | Open model picker |
@@ -86,10 +88,10 @@ Press `Ctrl+T` to switch templates during a session.
 ## Troubleshooting
 
 ### "No models found"
-Place `.gguf` model files in `~/.openllama/models/`.
+Place `.gguf` model files in `runtime/models/` next to the `openllama` binary.
 
 ### "llama-server not found"
-Download the llama-server binary and place it next to the openllama binary or in `~/.openllama/bin/`.
+Download the llama-server binary and place it in `runtime/llama.cpp/` next to the `openllama` binary.
 
 ### "Model is taking too long to load"
 The model may be too large for your available RAM. Try a smaller model or a lower quantization (Q4 instead of Q8).

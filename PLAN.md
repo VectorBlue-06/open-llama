@@ -53,6 +53,7 @@ A fast, minimal, fully-offline AI terminal assistant that:
 ### Target User
 
 Technical professionals (developers, sysadmins, data scientists) who:
+
 - Want a private, offline AI assistant
 - Are comfortable with the terminal but don't want to configure llama.cpp flags
 - Need something that "just works" out of the box
@@ -72,12 +73,12 @@ Technical professionals (developers, sysadmins, data scientists) who:
 
 ### Language
 
-| Component | Technology |
-|-----------|-----------|
-| Application | **Go 1.22+** |
-| TUI Framework | [Bubble Tea](https://github.com/charmbracelet/bubbletea) v0.25+ |
-| TUI Layout | [Lip Gloss](https://github.com/charmbracelet/lipgloss) v0.10+ |
-| Text Input | [Bubble Tea textarea](https://github.com/charmbracelet/bubbles) |
+| Component         | Technology                                                                  |
+| ----------------- | --------------------------------------------------------------------------- |
+| Application       | **Go 1.24.13+**                                                             |
+| TUI Framework     | [Bubble Tea](https://github.com/charmbracelet/bubbletea) v0.25+             |
+| TUI Layout        | [Lip Gloss](https://github.com/charmbracelet/lipgloss) v0.10+               |
+| Text Input        | [Bubble Tea textarea](https://github.com/charmbracelet/bubbles)             |
 | Inference Backend | [llama.cpp server](https://github.com/ggerganov/llama.cpp) (bundled binary) |
 
 ### Go Module Dependencies
@@ -93,11 +94,12 @@ require (
 
 ### External Dependencies (Bundled at Build Time)
 
-| Dependency | Purpose | Source |
-|-----------|---------|--------|
+| Dependency     | Purpose              | Source                            |
+| -------------- | -------------------- | --------------------------------- |
 | `llama-server` | LLM inference server | Pre-built from llama.cpp releases |
 
 Platform-specific binaries:
+
 - `llama-server-linux-x86_64` — Linux AMD64
 - `llama-server-linux-x86_64-cuda` — Linux AMD64 with CUDA
 - `llama-server-darwin-arm64` — macOS Apple Silicon (Metal)
@@ -107,13 +109,13 @@ Platform-specific binaries:
 
 ### System Requirements
 
-| Resource | Minimum | Recommended |
-|----------|---------|-------------|
-| RAM | 4 GB (Q4 small models) | 16 GB+ |
-| CPU | 4 cores | 8+ cores |
-| Disk | 100 MB (app) + model size | — |
-| GPU | Optional | NVIDIA (CUDA 11.7+) or Apple Metal |
-| OS | Linux x86_64, Windows 10+, macOS 12+ | — |
+| Resource | Minimum                              | Recommended                        |
+| -------- | ------------------------------------ | ---------------------------------- |
+| RAM      | 4 GB (Q4 small models)               | 16 GB+                             |
+| CPU      | 4 cores                              | 8+ cores                           |
+| Disk     | 100 MB (app) + model size            | —                                  |
+| GPU      | Optional                             | NVIDIA (CUDA 11.7+) or Apple Metal |
+| OS       | Linux x86_64, Windows 10+, macOS 12+ | —                                  |
 
 ---
 
@@ -476,6 +478,7 @@ openllama/
 ```
 
 At runtime, the app locates the server binary by:
+
 1. Checking the directory of the running executable
 2. Falling back to `~/.openllama/bin/llama-server`
 3. Falling back to `llama-server` in PATH
@@ -537,11 +540,11 @@ func (s *Server) waitForReady(timeout time.Duration) error {
 
 ### API Endpoints Used
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/health` | GET | Server readiness check |
-| `/completion` | POST | Text completion with streaming |
-| `/v1/models` | GET | Loaded model info (optional) |
+| Endpoint      | Method | Purpose                        |
+| ------------- | ------ | ------------------------------ |
+| `/health`     | GET    | Server readiness check         |
+| `/completion` | POST   | Text completion with streaming |
+| `/v1/models`  | GET    | Loaded model info (optional)   |
 
 ### Completion Request Format
 
@@ -630,13 +633,13 @@ func detectMetal(info *HardwareInfo) {
 
 ### Auto-Configuration Rules
 
-| Parameter | Rule |
-|-----------|------|
-| `threads` | `min(CPU_CORES, 8)` — capped at 8 for diminishing returns |
-| `gpu_layers` | `999` if CUDA/Metal detected (offload all), else `0` |
-| `ctx_size` | Base `4096`. If free RAM > 16 GB: allow `8192`. If free RAM < 4 GB: cap at `2048`. |
-| `batch_size` | `512` (default, good balance for prompt processing) |
-| User override | Any value set in `config.json` overrides the auto-detected value |
+| Parameter     | Rule                                                                               |
+| ------------- | ---------------------------------------------------------------------------------- |
+| `threads`     | `min(CPU_CORES, 8)` — capped at 8 for diminishing returns                          |
+| `gpu_layers`  | `999` if CUDA/Metal detected (offload all), else `0`                               |
+| `ctx_size`    | Base `4096`. If free RAM > 16 GB: allow `8192`. If free RAM < 4 GB: cap at `2048`. |
+| `batch_size`  | `512` (default, good balance for prompt processing)                                |
+| User override | Any value set in `config.json` overrides the auto-detected value                   |
 
 ---
 
@@ -776,13 +779,13 @@ func (cm *ContextManager) Build(template Template) string {
 
 ### Context Stats Exposed to UI
 
-| Stat | Type | Description |
-|------|------|-------------|
-| `TokensUsed` | int | Estimated tokens in current prompt |
-| `TokensMax` | int | Configured context window size |
-| `MessagesTotal` | int | Total messages in conversation history |
-| `MessagesIncluded` | int | Messages fitting in current window |
-| `PercentUsed` | float64 | `TokensUsed / TokensMax * 100` |
+| Stat               | Type    | Description                            |
+| ------------------ | ------- | -------------------------------------- |
+| `TokensUsed`       | int     | Estimated tokens in current prompt     |
+| `TokensMax`        | int     | Configured context window size         |
+| `MessagesTotal`    | int     | Total messages in conversation history |
+| `MessagesIncluded` | int     | Messages fitting in current window     |
+| `PercentUsed`      | float64 | `TokensUsed / TokensMax * 100`         |
 
 ---
 
@@ -821,6 +824,7 @@ var ChatML = Template{
 ```
 
 **Produces:**
+
 ```
 <|im_start|>system
 You are a helpful assistant.<|im_end|>
@@ -911,6 +915,7 @@ Users can define custom templates in `config.json`:
 ### Template Auto-Detection (Stretch Goal)
 
 Attempt to match template based on model filename:
+
 - Filename contains "chatml" → ChatML
 - Filename contains "llama-2" or "llama2" → Llama 2
 - Filename contains "llama-3" or "llama3" → Llama 3
@@ -1013,6 +1018,7 @@ func (e *Engine) streamCompletion(ctx context.Context, prompt string) (<-chan St
 ### Cancellation
 
 When user presses `Esc` during streaming:
+
 1. Cancel the context (`ctx.Cancel()`)
 2. HTTP request is aborted
 3. Partial response is kept as the assistant message
@@ -1105,23 +1111,23 @@ type Model struct {
 
 ### Key Bindings
 
-| Key | Action | Context |
-|-----|--------|---------|
-| `Enter` | Send message | Input has text, not streaming |
-| `Shift+Enter` | Newline in input | Always in input box |
-| `Esc` | Cancel streaming / close overlay | During stream or overlay |
-| `Ctrl+N` | New conversation | Always |
-| `Ctrl+M` | Open model picker | Not streaming |
-| `Ctrl+T` | Open template picker | Not streaming |
-| `Ctrl+S` | Save session to file | Always |
-| `Ctrl+Q` | Quit application | Always |
-| `Ctrl+C` | Quit application | Always |
-| `Ctrl+L` | Clear screen (redraw) | Always |
-| `Up/Down` | Scroll chat history | In chat view |
-| `PgUp/PgDn` | Scroll chat fast | In chat view |
-| `Home` | Scroll to top | In chat view |
-| `End` | Scroll to bottom | In chat view |
-| `Tab` | Cycle focus (input <-> chat) | Always |
+| Key           | Action                           | Context                       |
+| ------------- | -------------------------------- | ----------------------------- |
+| `Enter`       | Send message                     | Input has text, not streaming |
+| `Shift+Enter` | Newline in input                 | Always in input box           |
+| `Esc`         | Cancel streaming / close overlay | During stream or overlay      |
+| `Ctrl+N`      | New conversation                 | Always                        |
+| `Ctrl+M`      | Open model picker                | Not streaming                 |
+| `Ctrl+T`      | Open template picker             | Not streaming                 |
+| `Ctrl+S`      | Save session to file             | Always                        |
+| `Ctrl+Q`      | Quit application                 | Always                        |
+| `Ctrl+C`      | Quit application                 | Always                        |
+| `Ctrl+L`      | Clear screen (redraw)            | Always                        |
+| `Up/Down`     | Scroll chat history              | In chat view                  |
+| `PgUp/PgDn`   | Scroll chat fast                 | In chat view                  |
+| `Home`        | Scroll to top                    | In chat view                  |
+| `End`         | Scroll to bottom                 | In chat view                  |
+| `Tab`         | Cycle focus (input <-> chat)     | Always                        |
 
 ### Custom Bubble Tea Messages
 
@@ -1163,15 +1169,15 @@ type ModelsScanCompleteMsg struct {
 
 For MVP, support basic formatting in assistant responses:
 
-| Feature | Rendering |
-|---------|-----------|
-| `**bold**` | Bold (lipgloss) |
-| `*italic*` | Italic (if terminal supports) |
-| `` `code` `` | Highlighted background |
-| ```` ```code block``` ```` | Indented, dim background |
-| `- list items` | Bullet character + indent |
-| `1. numbered` | Number + indent |
-| `# Headers` | Bold + color |
+| Feature                    | Rendering                     |
+| -------------------------- | ----------------------------- |
+| `**bold**`                 | Bold (lipgloss)               |
+| `*italic*`                 | Italic (if terminal supports) |
+| `` `code` ``               | Highlighted background        |
+| ```` ```code block``` ```` | Indented, dim background      |
+| `- list items`             | Bullet character + indent     |
+| `1. numbered`              | Number + indent               |
+| `# Headers`                | Bold + color                  |
 
 Full markdown rendering deferred to Phase 2.
 
@@ -1221,14 +1227,14 @@ var httpClient = &http.Client{
 
 ### Performance Targets
 
-| Metric | Target |
-|--------|--------|
-| Startup to TUI visible | < 200ms (excluding model load) |
-| UI render latency | < 16ms per frame |
-| Memory overhead (no model) | < 20 MB |
-| Streaming smoothness | No visible jank up to 100 tok/s |
-| Context up to 8K tokens | No UI lag |
-| Goroutine count | < 10 during idle |
+| Metric                     | Target                          |
+| -------------------------- | ------------------------------- |
+| Startup to TUI visible     | < 200ms (excluding model load)  |
+| UI render latency          | < 16ms per frame                |
+| Memory overhead (no model) | < 20 MB                         |
+| Streaming smoothness       | No visible jank up to 100 tok/s |
+| Context up to 8K tokens    | No UI lag                       |
+| Goroutine count            | < 10 during idle                |
 
 ### Profiling Commands (Development)
 
@@ -1285,6 +1291,7 @@ type Collector struct {
 ```
 
 Breakdown:
+
 - **Model name**: truncated to 20 chars
 - **Template**: current template name
 - **Context**: percentage + token counts
@@ -1293,13 +1300,13 @@ Breakdown:
 
 ### Data Sources
 
-| Metric | Source |
-|--------|--------|
-| Tokens/sec | `timings.predicted_per_second` from completion response |
-| Prompt tokens | `timings.prompt_n` from completion response |
-| Context usage | Calculated by Context Manager |
-| RAM usage | `gopsutil` (sampled every 5s) |
-| GPU status | Hardware detection at startup |
+| Metric        | Source                                                  |
+| ------------- | ------------------------------------------------------- |
+| Tokens/sec    | `timings.predicted_per_second` from completion response |
+| Prompt tokens | `timings.prompt_n` from completion response             |
+| Context usage | Calculated by Context Manager                           |
+| RAM usage     | `gopsutil` (sampled every 5s)                           |
+| GPU status    | Hardware detection at startup                           |
 
 ---
 
@@ -1307,10 +1314,10 @@ Breakdown:
 
 ### Config File Location
 
-| OS | Path |
-|----|------|
-| Linux | `~/.openllama/config.json` |
-| macOS | `~/.openllama/config.json` |
+| OS      | Path                                   |
+| ------- | -------------------------------------- |
+| Linux   | `~/.openllama/config.json`             |
+| macOS   | `~/.openllama/config.json`             |
 | Windows | `%USERPROFILE%\.openllama\config.json` |
 
 ### Full Config Schema
@@ -1367,26 +1374,26 @@ Breakdown:
 
 ### Config Field Descriptions
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `model.default` | string | `""` | Filename of default model. Empty = auto-select or prompt. |
-| `model.models_dir` | string | `~/.openllama/models` | Directory to scan for .gguf files. |
-| `server.host` | string | `127.0.0.1` | Bind address for llama-server. Always localhost. |
-| `server.port` | int | `0` | Port for llama-server. `0` = random free port. |
-| `server.ctx_size` | int | `4096` | Context window size in tokens. |
-| `server.batch_size` | int | `512` | Batch size for prompt processing. |
-| `server.threads` | int | `0` | CPU threads. `0` = auto-detect. |
-| `server.gpu_layers` | int | `-1` | GPU layers. `-1` = auto (all if GPU, 0 if not). `0` = force CPU. |
-| `server.extra_args` | []string | `[]` | Additional CLI args passed to llama-server. |
-| `generation.temperature` | float | `0.7` | Sampling temperature. |
-| `generation.top_p` | float | `0.9` | Top-p (nucleus) sampling. |
-| `generation.top_k` | int | `40` | Top-k sampling. |
-| `generation.repeat_penalty` | float | `1.1` | Repetition penalty. |
-| `generation.max_tokens` | int | `2048` | Max tokens to generate per response. |
-| `template.default` | string | `"chatml"` | Default template name. |
-| `template.system_prompt` | string | (see above) | System prompt prepended to every conversation. |
-| `session.auto_save` | bool | `false` | Auto-save sessions on quit. |
-| `debug` | bool | `false` | Enable debug logging and pprof. |
+| Field                       | Type     | Default               | Description                                                      |
+| --------------------------- | -------- | --------------------- | ---------------------------------------------------------------- |
+| `model.default`             | string   | `""`                  | Filename of default model. Empty = auto-select or prompt.        |
+| `model.models_dir`          | string   | `~/.openllama/models` | Directory to scan for .gguf files.                               |
+| `server.host`               | string   | `127.0.0.1`           | Bind address for llama-server. Always localhost.                 |
+| `server.port`               | int      | `0`                   | Port for llama-server. `0` = random free port.                   |
+| `server.ctx_size`           | int      | `4096`                | Context window size in tokens.                                   |
+| `server.batch_size`         | int      | `512`                 | Batch size for prompt processing.                                |
+| `server.threads`            | int      | `0`                   | CPU threads. `0` = auto-detect.                                  |
+| `server.gpu_layers`         | int      | `-1`                  | GPU layers. `-1` = auto (all if GPU, 0 if not). `0` = force CPU. |
+| `server.extra_args`         | []string | `[]`                  | Additional CLI args passed to llama-server.                      |
+| `generation.temperature`    | float    | `0.7`                 | Sampling temperature.                                            |
+| `generation.top_p`          | float    | `0.9`                 | Top-p (nucleus) sampling.                                        |
+| `generation.top_k`          | int      | `40`                  | Top-k sampling.                                                  |
+| `generation.repeat_penalty` | float    | `1.1`                 | Repetition penalty.                                              |
+| `generation.max_tokens`     | int      | `2048`                | Max tokens to generate per response.                             |
+| `template.default`          | string   | `"chatml"`            | Default template name.                                           |
+| `template.system_prompt`    | string   | (see above)           | System prompt prepended to every conversation.                   |
+| `session.auto_save`         | bool     | `false`               | Auto-save sessions on quit.                                      |
+| `debug`                     | bool     | `false`               | Enable debug logging and pprof.                                  |
 
 ### Config Loading Priority (highest wins)
 
@@ -1401,19 +1408,19 @@ Breakdown:
 
 ### Error Categories & Recovery
 
-| Error | Detection | User Experience | Recovery |
-|-------|-----------|----------------|----------|
-| **No models found** | Model scan returns empty | Welcome screen with instructions | User adds models, presses 'r' to rescan |
-| **Server binary not found** | Binary not at expected paths | Error screen: "llama-server not found" with path instructions | User places binary, restarts |
-| **Server fails to start** | Process exits with non-zero code | Error screen with stderr output (last 10 lines) | Retry button, or model switch |
-| **Server health timeout** | Health check exceeds 120s | "Model is taking too long to load. It may be too large for your RAM." | Retry or switch to smaller model |
-| **Port conflict** | `bind: address already in use` in stderr | Transparent — auto-retry with new port | Automatic (up to 3 retries) |
-| **OOM (out of memory)** | Server killed by OS (exit code 137) | "Model requires more RAM than available. Try a smaller quantization." | Model picker shown |
-| **HTTP request failure** | Connection refused / timeout | Inline error in chat: "[Server error — retrying...]" | Auto-retry once, then show persistent error |
-| **Streaming interrupted** | Connection reset during SSE | Keep partial response, show "[Response interrupted]" | User can resend |
-| **GGUF parse error** | Invalid file header | Skip file in model list, log warning | Transparent to user |
-| **Config parse error** | Invalid JSON | Log warning, use defaults | Auto-recover with defaults |
-| **Terminal too small** | Width < 40 or height < 10 | "Terminal too small. Minimum: 40x10" | Resize terminal |
+| Error                       | Detection                                | User Experience                                                       | Recovery                                    |
+| --------------------------- | ---------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------- |
+| **No models found**         | Model scan returns empty                 | Welcome screen with instructions                                      | User adds models, presses 'r' to rescan     |
+| **Server binary not found** | Binary not at expected paths             | Error screen: "llama-server not found" with path instructions         | User places binary, restarts                |
+| **Server fails to start**   | Process exits with non-zero code         | Error screen with stderr output (last 10 lines)                       | Retry button, or model switch               |
+| **Server health timeout**   | Health check exceeds 120s                | "Model is taking too long to load. It may be too large for your RAM." | Retry or switch to smaller model            |
+| **Port conflict**           | `bind: address already in use` in stderr | Transparent — auto-retry with new port                                | Automatic (up to 3 retries)                 |
+| **OOM (out of memory)**     | Server killed by OS (exit code 137)      | "Model requires more RAM than available. Try a smaller quantization." | Model picker shown                          |
+| **HTTP request failure**    | Connection refused / timeout             | Inline error in chat: "[Server error — retrying...]"                  | Auto-retry once, then show persistent error |
+| **Streaming interrupted**   | Connection reset during SSE              | Keep partial response, show "[Response interrupted]"                  | User can resend                             |
+| **GGUF parse error**        | Invalid file header                      | Skip file in model list, log warning                                  | Transparent to user                         |
+| **Config parse error**      | Invalid JSON                             | Log warning, use defaults                                             | Auto-recover with defaults                  |
+| **Terminal too small**      | Width < 40 or height < 10                | "Terminal too small. Minimum: 40x10"                                  | Resize terminal                             |
 
 ### Error Display Styles
 
@@ -1447,19 +1454,19 @@ func main() {
 
 ### Log Levels
 
-| Level | Usage |
-|-------|-------|
-| `ERROR` | Failures that affect functionality |
-| `WARN` | Degraded behavior (fallbacks triggered) |
-| `INFO` | Lifecycle events (startup, model loaded, shutdown) |
+| Level   | Usage                                                |
+| ------- | ---------------------------------------------------- |
+| `ERROR` | Failures that affect functionality                   |
+| `WARN`  | Degraded behavior (fallbacks triggered)              |
+| `INFO`  | Lifecycle events (startup, model loaded, shutdown)   |
 | `DEBUG` | Verbose detail (HTTP requests, token counts, timing) |
 
 ### Log Output
 
-| Mode | Destination |
-|------|-------------|
-| Normal | `~/.openllama/openllama.log` (file only) |
-| Debug (`--debug`) | File + stderr |
+| Mode              | Destination                              |
+| ----------------- | ---------------------------------------- |
+| Normal            | `~/.openllama/openllama.log` (file only) |
+| Debug (`--debug`) | File + stderr                            |
 
 ### Log Format
 
@@ -1525,6 +1532,7 @@ func main() {
 ### Auto-Save Behavior
 
 If `config.session.auto_save == true`:
+
 - Save on `Ctrl+Q` (quit)
 - Save on `Ctrl+N` (new chat — saves current before clearing)
 - Save on `Ctrl+S` (manual save)
@@ -1572,11 +1580,11 @@ If `config.session.auto_save == true`:
 
 ### Build Requirements
 
-| Tool | Version | Purpose |
-|------|---------|---------|
-| Go | 1.22+ | Compile the application |
-| Make | any | Build automation |
-| llama-server | latest | Pre-built binary (per platform) |
+| Tool         | Version | Purpose                         |
+| ------------ | ------- | ------------------------------- |
+| Go           | 1.24.13+ | Compile the application        |
+| Make         | any     | Build automation                |
+| llama-server | latest  | Pre-built binary (per platform) |
 
 ### Makefile Targets
 
@@ -1588,35 +1596,35 @@ LDFLAGS := -ldflags "-s -w -X main.version=$(VERSION)"
 
 # Build for current platform
 build:
-	go build $(LDFLAGS) -o bin/openllama ./cmd/openllama
+    go build $(LDFLAGS) -o bin/openllama ./cmd/openllama
 
 # Build for all platforms
 build-all: build-linux build-darwin build-windows
 
 build-linux:
-	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o bin/openllama-linux-amd64 ./cmd/openllama
+    GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o bin/openllama-linux-amd64 ./cmd/openllama
 
 build-darwin:
-	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o bin/openllama-darwin-arm64 ./cmd/openllama
+    GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o bin/openllama-darwin-arm64 ./cmd/openllama
 
 build-windows:
-	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o bin/openllama-windows-amd64.exe ./cmd/openllama
+    GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o bin/openllama-windows-amd64.exe ./cmd/openllama
 
 # Run tests
 test:
-	go test ./... -v -race -count=1
+    go test ./... -v -race -count=1
 
 # Lint
 lint:
-	golangci-lint run ./...
+    golangci-lint run ./...
 
 # Clean build artifacts
 clean:
-	rm -rf bin/ dist/
+    rm -rf bin/ dist/
 
 # Package for distribution
 package: build-all
-	./scripts/package.sh
+    ./scripts/package.sh
 ```
 
 ### Package Structure (Distribution)
@@ -1697,7 +1705,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.24.13'
       - run: scripts/download-server.sh ${{ matrix.goos }}-${{ matrix.goarch }}
       - run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} make build
       - run: scripts/package.sh
@@ -1712,24 +1720,24 @@ jobs:
 
 ### Test Categories
 
-| Category | Location | Tool | Coverage Target |
-|----------|----------|------|----------------|
-| Unit tests | `*_test.go` alongside code | `go test` | 80%+ for core packages |
-| Integration tests | `internal/app/integration_test.go` | `go test -tags=integration` | Key flows |
-| Manual testing | — | Human tester | Full UI, streaming, all keybinds |
+| Category          | Location                           | Tool                        | Coverage Target                  |
+| ----------------- | ---------------------------------- | --------------------------- | -------------------------------- |
+| Unit tests        | `*_test.go` alongside code         | `go test`                   | 80%+ for core packages           |
+| Integration tests | `internal/app/integration_test.go` | `go test -tags=integration` | Key flows                        |
+| Manual testing    | —                                  | Human tester                | Full UI, streaming, all keybinds |
 
 ### Unit Test Priorities
 
-| Package | What to Test | Priority |
-|---------|-------------|----------|
-| `context` | Token estimation accuracy, sliding window correctness, edge cases (empty, single message, overflow) | **Critical** |
-| `templates` | All built-in templates produce correct output, custom templates parse correctly | **Critical** |
-| `config` | Load/save round-trip, defaults applied, merge priority, invalid JSON handling | **High** |
-| `server` | Port finder, arg builder, health check retry logic (mock server) | **High** |
-| `chat` | Message management, SSE parsing (with mock HTTP server) | **High** |
-| `hardware` | Mock command outputs, edge cases (no GPU, multiple GPUs) | **Medium** |
-| `models` | GGUF scanning, filename parsing, RAM estimation | **Medium** |
-| `metrics` | Collector accumulation, thread safety | **Medium** |
+| Package     | What to Test                                                                                        | Priority     |
+| ----------- | --------------------------------------------------------------------------------------------------- | ------------ |
+| `context`   | Token estimation accuracy, sliding window correctness, edge cases (empty, single message, overflow) | **Critical** |
+| `templates` | All built-in templates produce correct output, custom templates parse correctly                     | **Critical** |
+| `config`    | Load/save round-trip, defaults applied, merge priority, invalid JSON handling                       | **High**     |
+| `server`    | Port finder, arg builder, health check retry logic (mock server)                                    | **High**     |
+| `chat`      | Message management, SSE parsing (with mock HTTP server)                                             | **High**     |
+| `hardware`  | Mock command outputs, edge cases (no GPU, multiple GPUs)                                            | **Medium**   |
+| `models`    | GGUF scanning, filename parsing, RAM estimation                                                     | **Medium**   |
+| `metrics`   | Collector accumulation, thread safety                                                               | **Medium**   |
 
 ### Integration Tests
 
@@ -1752,6 +1760,7 @@ func TestFullChatFlow(t *testing.T) {
 ### Test Model
 
 For integration tests, use a tiny model:
+
 - `tinyllamas-stories-260k-q8_0.gguf` (~500 KB) — produces gibberish but tests the pipeline
 
 ---
@@ -1767,16 +1776,17 @@ For integration tests, use a tiny model:
 
 ### Loading States
 
-| State | Visual |
-|-------|--------|
-| App starting | Centered spinner: "Starting OpenLlama..." |
-| Model loading | Centered spinner: "Loading model... (this may take a moment)" |
-| Switching models | Overlay spinner: "Switching to {model}..." |
-| Waiting for response | Blinking cursor in assistant message area |
+| State                | Visual                                                        |
+| -------------------- | ------------------------------------------------------------- |
+| App starting         | Centered spinner: "Starting OpenLlama..."                     |
+| Model loading        | Centered spinner: "Loading model... (this may take a moment)" |
+| Switching models     | Overlay spinner: "Switching to {model}..."                    |
+| Waiting for response | Blinking cursor in assistant message area                     |
 
 ### Spinner Implementation
 
 Use Bubble Tea's built-in spinner (`bubbles/spinner`):
+
 ```go
 spinner.New(
     spinner.WithSpinner(spinner.Dot),
@@ -1803,26 +1813,26 @@ spinner.New(
 
 These features are **in scope** for the first release:
 
-| # | Feature | Status |
-|---|---------|--------|
-| 1 | Bundled llama-server (sidecar) | Required |
-| 2 | Auto hardware detection (CPU, RAM, GPU) | Required |
-| 3 | Auto server configuration | Required |
-| 4 | Chat interface (scrollable, keyboard-driven) | Required |
-| 5 | Streaming token display | Required |
-| 6 | Context manager (sliding window) | Required |
-| 7 | Prompt templates (ChatML, Llama2, Llama3, Alpaca, Minimal) | Required |
-| 8 | Custom user template support | Required |
-| 9 | Model scanning and selection | Required |
-| 10 | Model switching (hot-swap with server restart) | Required |
-| 11 | Config file (JSON) | Required |
-| 12 | Live metrics bar (tokens/sec, context %, model name) | Required |
-| 13 | Graceful shutdown | Required |
-| 14 | Session save/load | Required |
-| 15 | Welcome screen (first run) | Required |
-| 16 | Error handling with recovery | Required |
-| 17 | Debug logging mode | Required |
-| 18 | Cross-platform support (Linux, Windows, macOS) | Required |
+| #   | Feature                                                    | Status   |
+| --- | ---------------------------------------------------------- | -------- |
+| 1   | Bundled llama-server (sidecar)                             | Required |
+| 2   | Auto hardware detection (CPU, RAM, GPU)                    | Required |
+| 3   | Auto server configuration                                  | Required |
+| 4   | Chat interface (scrollable, keyboard-driven)               | Required |
+| 5   | Streaming token display                                    | Required |
+| 6   | Context manager (sliding window)                           | Required |
+| 7   | Prompt templates (ChatML, Llama2, Llama3, Alpaca, Minimal) | Required |
+| 8   | Custom user template support                               | Required |
+| 9   | Model scanning and selection                               | Required |
+| 10  | Model switching (hot-swap with server restart)             | Required |
+| 11  | Config file (JSON)                                         | Required |
+| 12  | Live metrics bar (tokens/sec, context %, model name)       | Required |
+| 13  | Graceful shutdown                                          | Required |
+| 14  | Session save/load                                          | Required |
+| 15  | Welcome screen (first run)                                 | Required |
+| 16  | Error handling with recovery                               | Required |
+| 17  | Debug logging mode                                         | Required |
+| 18  | Cross-platform support (Linux, Windows, macOS)             | Required |
 
 ### Explicitly NOT in MVP
 
@@ -1917,19 +1927,19 @@ These features are **in scope** for the first release:
 
 These features are planned for after MVP:
 
-| Feature | Description | Complexity |
-|---------|-------------|------------|
-| Session history browser | Browse and reload past sessions from TUI | Medium |
-| Model downloader | Download models from HuggingFace directly | High |
-| Plugin system | Extend functionality via Go plugins or scripts | High |
-| Tool calling | Allow model to call defined tools (shell, web, etc.) | High |
-| File-based RAG | Load files into context for Q&A | High |
-| Full markdown renderer | Complete markdown rendering with syntax highlighting | Medium |
-| Benchmark mode | Measure and display detailed performance metrics | Low |
-| Multi-conversation tabs | Multiple chats open simultaneously | Medium |
-| Conversation export | Export to markdown, text, or HTML | Low |
-| System prompt library | Pre-built system prompts for common tasks | Low |
-| Vim key bindings | Optional vim-style navigation | Low |
+| Feature                 | Description                                          | Complexity |
+| ----------------------- | ---------------------------------------------------- | ---------- |
+| Session history browser | Browse and reload past sessions from TUI             | Medium     |
+| Model downloader        | Download models from HuggingFace directly            | High       |
+| Plugin system           | Extend functionality via Go plugins or scripts       | High       |
+| Tool calling            | Allow model to call defined tools (shell, web, etc.) | High       |
+| File-based RAG          | Load files into context for Q&A                      | High       |
+| Full markdown renderer  | Complete markdown rendering with syntax highlighting | Medium     |
+| Benchmark mode          | Measure and display detailed performance metrics     | Low        |
+| Multi-conversation tabs | Multiple chats open simultaneously                   | Medium     |
+| Conversation export     | Export to markdown, text, or HTML                    | Low        |
+| System prompt library   | Pre-built system prompts for common tasks            | Low        |
+| Vim key bindings        | Optional vim-style navigation                        | Low        |
 
 ---
 

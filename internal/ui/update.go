@@ -16,18 +16,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleKeyMsg(msg)
 
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
+		m.width = maxInt(20, msg.Width)
+		m.height = maxInt(10, msg.Height)
+
+		viewportWidth := maxInt(1, m.width)
+		viewportHeight := maxInt(1, m.height-8)
+		textareaWidth := maxInt(10, m.width-4)
 
 		if !m.ready {
-			m.viewport = viewport.New(msg.Width, msg.Height-8)
+			m.viewport = viewport.New(viewportWidth, viewportHeight)
 			m.viewport.HighPerformanceRendering = false
 			m.ready = true
 		} else {
-			m.viewport.Width = msg.Width
-			m.viewport.Height = msg.Height - 8
+			m.viewport.Width = viewportWidth
+			m.viewport.Height = viewportHeight
 		}
-		m.textarea.SetWidth(msg.Width - 4)
+		m.textarea.SetWidth(textareaWidth)
 		m.updateViewportContent()
 		return m, nil
 
@@ -108,6 +112,14 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else if m.showOverlay != OverlayNone {
 			m.showOverlay = OverlayNone
 		}
+		return m, nil
+
+	case key.Matches(msg, m.keys.NewLine):
+		if m.streaming || m.showOverlay != OverlayNone {
+			return m, nil
+		}
+		value := m.textarea.Value()
+		m.textarea.SetValue(value + "\n")
 		return m, nil
 
 	case key.Matches(msg, m.keys.Send):

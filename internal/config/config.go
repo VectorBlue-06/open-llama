@@ -72,7 +72,7 @@ func Defaults() *Config {
 		Version: 1,
 		Model: ModelConfig{
 			Default:   "",
-			ModelsDir: "~/.openllama/models",
+			ModelsDir: "runtime/models",
 		},
 		Server: ServerConfig{
 			Host:      "127.0.0.1",

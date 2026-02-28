@@ -2,7 +2,7 @@
     "version": 1,
     "model": {
         "default": "",
-        "models_dir": "~/.openllama/models"
+        "models_dir": "runtime/models"
     },
     "server": {
         "host": "127.0.0.1",

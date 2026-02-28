@@ -193,11 +193,11 @@ See [docs/CONFIG.md](docs/CONFIG.md) for the complete reference.
 
 ```bash
 # 1. Place a model
-mkdir -p ~/.openllama/models
-cp your-model.gguf ~/.openllama/models/
+mkdir -p runtime/models
+cp your-model.gguf runtime/models/
 
-# 2. Place llama-server next to the binary
-cp llama-server /same/dir/as/openllama/
+# 2. Place llama-server in runtime/llama.cpp/ next to the binary
+cp llama-server runtime/llama.cpp/
 
 # 3. Run
 ./openllama
@@ -287,7 +287,7 @@ The context percentage is shown in the top bar and changes color:
 
 OpenLlama manages llama-server as a child process:
 
-1. Finds binary (sidecar → `~/.openllama/bin/` → PATH)
+1. Finds binary (`runtime/llama.cpp/` → `runtime/` → sidecar → `~/.openllama/bin/` → PATH)
 2. Launches on random localhost port (49152-65535)
 3. Polls `/health` until ready (timeout: 120s)
 4. Communicates via HTTP + SSE streaming
@@ -347,7 +347,7 @@ Sessions can be saved as JSON in `~/.openllama/sessions/`.
 
 ### Requirements
 
-- Go 1.22+
+- Go 1.24.13+
 - Make (optional)
 - llama-server binary
 

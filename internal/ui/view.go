@@ -95,12 +95,12 @@ func (m *Model) updateViewportContent() {
 		case "user":
 			sb.WriteString(UserMsgStyle.Render("You:"))
 			sb.WriteString("\n")
-			sb.WriteString(msg.Content)
+			sb.WriteString(UserTextStyle.Render(msg.Content))
 			sb.WriteString("\n\n")
 		case "assistant":
 			sb.WriteString(AssistantMsgStyle.Render("Assistant:"))
 			sb.WriteString("\n")
-			sb.WriteString(msg.Content)
+			sb.WriteString(AssistantTextStyle.Render(msg.Content))
 			sb.WriteString("\n\n")
 		}
 	}
@@ -109,7 +109,7 @@ func (m *Model) updateViewportContent() {
 	if m.streaming && m.streamBuffer.Len() > 0 {
 		sb.WriteString(AssistantMsgStyle.Render("Assistant:"))
 		sb.WriteString("\n")
-		sb.WriteString(m.streamBuffer.String())
+		sb.WriteString(AssistantTextStyle.Render(m.streamBuffer.String()))
 		sb.WriteString("█\n")
 	}
 
@@ -125,7 +125,7 @@ func (m Model) viewWelcome() string {
 		"No models found.",
 		"",
 		"Place .gguf model files in:",
-		DimStyle.Render("~/.openllama/models/"),
+		DimStyle.Render("runtime/models/ (next to openllama)"),
 		"",
 		"Recommended starter models:",
 		DimStyle.Render("• Mistral 7B Q4_K_M  (~4.4 GB RAM)"),

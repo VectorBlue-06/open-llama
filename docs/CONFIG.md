@@ -17,7 +17,7 @@ OpenLlama stores its configuration in `~/.openllama/config.json`.
     "version": 1,
     "model": {
         "default": "",
-        "models_dir": "~/.openllama/models"
+        "models_dir": "runtime/models"
     },
     "server": {
         "host": "127.0.0.1",
@@ -61,7 +61,7 @@ OpenLlama stores its configuration in `~/.openllama/config.json`.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `default` | string | `""` | Filename of default model. Empty = auto-select. |
-| `models_dir` | string | `~/.openllama/models` | Directory to scan for .gguf files. |
+| `models_dir` | string | `runtime/models` | Directory to scan for .gguf files. |
 
 ### Server
 
