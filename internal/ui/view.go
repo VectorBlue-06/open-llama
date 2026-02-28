@@ -15,6 +15,10 @@ func (m Model) View() string {
 		return "\n  Initializing..."
 	}
 
+	if m.mode == ModeStartup && m.showOverlay == OverlayNone {
+		return m.viewStartup()
+	}
+
 	switch m.showOverlay {
 	case OverlayWelcome:
 		return m.viewWelcome()
@@ -24,6 +28,11 @@ func (m Model) View() string {
 		return m.viewWithOverlay(m.viewModelPicker())
 	case OverlayTemplatePicker:
 		return m.viewWithOverlay(m.viewTemplatePicker())
+	case OverlaySettings:
+		if m.mode == ModeStartup {
+			return m.viewWithOverlay(m.viewSettingsOverlay(), m.viewStartup())
+		}
+		return m.viewWithOverlay(m.viewSettingsOverlay(), m.viewChat())
 	}
 
 	return m.viewChat()
@@ -77,9 +86,12 @@ func (m Model) renderTopBar() string {
 }
 
 func (m Model) renderStatusBar() string {
-	hints := "Ctrl+N New │ Ctrl+M Model │ Ctrl+T Template │ Ctrl+Q Quit"
+	hints := "Esc Menu │ Tab Settings │ Shift+Enter New Line │ Ctrl+Q Quit"
 	if m.streaming {
 		hints = "Esc Cancel │ Streaming..."
+	}
+	if m.mode == ModeStartup {
+		hints = "Enter Start Chat │ Tab Settings │ Esc Menu │ Ctrl+Q Quit"
 	}
 	if m.err != nil {
 		hints = ErrorStyle.Render(fmt.Sprintf("Error: %v", m.err))
@@ -95,12 +107,12 @@ func (m *Model) updateViewportContent() {
 		case "user":
 			sb.WriteString(UserMsgStyle.Render("You:"))
 			sb.WriteString("\n")
-			sb.WriteString(UserTextStyle.Render(msg.Content))
+			sb.WriteString(m.scaleText(UserTextStyle, msg.Content))
 			sb.WriteString("\n\n")
 		case "assistant":
 			sb.WriteString(AssistantMsgStyle.Render("Assistant:"))
 			sb.WriteString("\n")
-			sb.WriteString(AssistantTextStyle.Render(msg.Content))
+			sb.WriteString(m.scaleText(AssistantTextStyle, msg.Content))
 			sb.WriteString("\n\n")
 		}
 	}
@@ -109,7 +121,7 @@ func (m *Model) updateViewportContent() {
 	if m.streaming && m.streamBuffer != "" {
 		sb.WriteString(AssistantMsgStyle.Render("Assistant:"))
 		sb.WriteString("\n")
-		sb.WriteString(AssistantTextStyle.Render(m.streamBuffer))
+		sb.WriteString(m.scaleText(AssistantTextStyle, m.streamBuffer))
 		sb.WriteString("█\n")
 	}
 
@@ -148,6 +160,43 @@ func (m Model) viewLoading() string {
 	return lipgloss.Place(m.width, m.height,
 		lipgloss.Center, lipgloss.Center,
 		WelcomeStyle.Render(content),
+	)
+}
+
+func (m Model) viewStartup() string {
+	ramInfo := m.ramInfo
+	if ramInfo == "" {
+		ramInfo = "RAM available: —"
+	}
+	gpuInfo := m.gpuInfo
+	if gpuInfo == "" {
+		gpuInfo = "GPU: —"
+	}
+	selectedModel := m.modelName
+	if selectedModel == "" {
+		selectedModel = "No model selected"
+	}
+
+	searchBox := InputStyle.Width(maxInt(30, m.width/2)).Render(m.textarea.View())
+
+	content := lipgloss.JoinVertical(lipgloss.Center,
+		lipgloss.NewStyle().Bold(true).Foreground(ColorPrimary).Render("Welcome to OpenLlama"),
+		"",
+		DimStyle.Render(ramInfo),
+		DimStyle.Render(gpuInfo),
+		DimStyle.Render("Selected model: "+selectedModel),
+		"",
+		searchBox,
+		"",
+		DimStyle.Render("Type a prompt and press Enter to start chat"),
+	)
+
+	statusBar := m.renderStatusBar()
+
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
+		lipgloss.Place(m.width, m.height-1, lipgloss.Center, lipgloss.Center, WelcomeStyle.Render(content)),
+		statusBar,
 	)
 }
 
@@ -201,15 +250,70 @@ func (m Model) viewTemplatePicker() string {
 	return sb.String()
 }
 
-func (m Model) viewWithOverlay(overlay string) string {
-	// Render chat behind overlay
+func (m Model) viewSettingsOverlay() string {
+	var sb strings.Builder
+	sb.WriteString(lipgloss.NewStyle().Bold(true).Foreground(ColorPrimary).Render("Settings"))
+	sb.WriteString("\n\n")
+
+	labels := []string{
+		"llama.cpp path",
+		"models path",
+		"font size",
+		"temperature",
+		"top_p",
+		"top_k",
+		"repeat penalty",
+		"max tokens",
+	}
+
+	for i, label := range labels {
+		prefix := "  "
+		if m.settingsField == i {
+			prefix = "▸ "
+		}
+		sb.WriteString(prefix + label + ": " + m.settingsInputs[i].View() + "\n")
+	}
+
+	modelLine := "(none)"
+	if len(m.availableModels) > 0 && m.settingsModelIdx >= 0 && m.settingsModelIdx < len(m.availableModels) {
+		modelLine = m.availableModels[m.settingsModelIdx].Filename
+	}
+	prefix := "  "
+	if m.settingsField == 8 {
+		prefix = "▸ "
+	}
+	sb.WriteString(prefix + "selected model: " + modelLine + "\n")
+
+	prefix = "  "
+	if m.settingsField == 9 {
+		prefix = "▸ "
+	}
+	sb.WriteString(prefix + "Apply and close\n\n")
+
+	sb.WriteString(DimStyle.Render("↑/↓ move  │  Enter edit/apply  │  ←/→ model  │  Esc close"))
+	return sb.String()
+}
+
+func (m Model) viewWithOverlay(overlay string, background ...string) string {
+	bg := m.viewChat()
+	if len(background) > 0 {
+		bg = background[0]
+	}
+
 	overlayRendered := WelcomeStyle.Render(overlay)
 
-	// Center overlay over background
-	return lipgloss.Place(m.width, m.height,
+	return bg + "\n" + lipgloss.Place(m.width, m.height,
 		lipgloss.Center, lipgloss.Center,
-		overlayRendered,
-		lipgloss.WithWhitespaceChars(" "),
-		lipgloss.WithWhitespaceForeground(lipgloss.Color("#000000")),
-	)
+		overlayRendered)
+}
+
+func (m Model) scaleText(style lipgloss.Style, text string) string {
+	if m.fontSize <= 1 {
+		return style.Render(text)
+	}
+	rendered := style.Bold(true).Render(text)
+	if m.fontSize >= 3 {
+		return rendered + "\n"
+	}
+	return rendered
 }

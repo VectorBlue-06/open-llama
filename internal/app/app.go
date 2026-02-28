@@ -3,7 +3,9 @@ package app
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -34,6 +36,7 @@ type App struct {
 	program  *tea.Program
 	modelList []models.ModelInfo
 	currentModel string
+	llamaPathOverride string
 }
 
 // New creates a new App instance.
@@ -99,9 +102,26 @@ func (a *App) Run() error {
 	a.uiModel = ui.NewModel(a.metrics)
 	a.uiModel.SetModels(a.modelList)
 	a.uiModel.SetModelInfo("", a.tmplEng.Template().Name)
+	a.uiModel.SetStartupInfo(hw.TotalRAM, hw.FreeRAM, hw.HasCUDA || hw.HasMetal)
+	a.uiModel.SetGenerationSettings(
+		a.cfg.Generation.Temperature,
+		a.cfg.Generation.TopP,
+		a.cfg.Generation.TopK,
+		a.cfg.Generation.RepeatPenalty,
+		a.cfg.Generation.MaxTokens,
+	)
+	a.uiModel.SetFontSize(a.cfg.UI.FontSize)
+	a.uiModel.SetRuntimePaths(filepath.Join(config.PrimaryRuntimeDir(), "llama.cpp"), modelsDir)
+	a.uiModel.SetCallbacks(
+		a.handleSend,
+		a.handleQuit,
+		a.handleNewChat,
+		a.handleModelSwitch,
+	)
+	a.uiModel.SetApplySettingsCallback(a.handleApplySettings)
 
 	if len(a.modelList) == 0 {
-		a.uiModel.ShowWelcome()
+		a.uiModel.SetError(fmt.Errorf("no models found in %s", modelsDir))
 		return a.runUI()
 	}
 
@@ -116,8 +136,7 @@ func (a *App) Run() error {
 	a.uiModel.SetModelInfo(selectedModel.Filename, detectedTmpl.Name)
 
 	// 9. Find and start server
-	appDir, _ := config.AppDir()
-	binaryPath, err := server.FindBinary(appDir)
+	binaryPath, err := a.resolveLlamaBinary()
 	if err != nil {
 		a.logger.Error("server binary not found: %v", err)
 		a.uiModel.SetError(err)
@@ -133,10 +152,7 @@ func (a *App) Run() error {
 		gpuLayers = hardware.RecommendGPULayers(hw)
 	}
 
-	serverLogPath := ""
-	if appDir != "" {
-		serverLogPath = filepath.Join(appDir, "llama-server.log")
-	}
+	serverLogPath := a.serverLogPath()
 
 	srvCfg := server.Config{
 		BinaryPath: binaryPath,
@@ -170,16 +186,7 @@ func (a *App) Run() error {
 	}
 	a.engine = chat.NewEngine(a.server.Port(), chatCfg, a.tmplEng)
 
-	// 10. Wait for server ready (in background) and launch UI
-	a.uiModel.ShowLoading()
-
-	// Set up callbacks
-	a.uiModel.SetCallbacks(
-		a.handleSend,
-		a.handleQuit,
-		a.handleNewChat,
-		a.handleModelSwitch,
-	)
+	// 10. Launch UI (startup screen remains visible; readiness is handled in background)
 
 	return a.runUI()
 }
@@ -200,6 +207,98 @@ func (a *App) runUI() error {
 	_, err := a.program.Run()
 	a.program = nil
 	return err
+}
+
+func (a *App) serverLogPath() string {
+	appDir, _ := config.AppDir()
+	if appDir == "" {
+		return ""
+	}
+	return filepath.Join(appDir, "llama-server.log")
+}
+
+func (a *App) resolveLlamaBinary() (string, error) {
+	if a.llamaPathOverride != "" {
+		binaryName := "llama-server"
+		if runtime.GOOS == "windows" {
+			binaryName = "llama-server.exe"
+		}
+
+		path := a.llamaPathOverride
+		if info, err := os.Stat(path); err == nil && info.IsDir() {
+			path = filepath.Join(path, binaryName)
+		}
+		if _, err := os.Stat(path); err == nil {
+			return path, nil
+		}
+		return "", fmt.Errorf("llama.cpp not found at %s", path)
+	}
+
+	appDir, _ := config.AppDir()
+	return server.FindBinary(appDir)
+}
+
+func (a *App) waitServerReadyAsync() {
+	go func() {
+		if err := a.server.WaitForReady(120 * time.Second); err != nil {
+			a.sendUI(ui.ServerFailedMsg{Err: err})
+			return
+		}
+		a.sendUI(ui.ServerReadyMsg{})
+	}()
+}
+
+func (a *App) restartServerForModel(model models.ModelInfo) error {
+	if a.server != nil && a.server.IsRunning() {
+		if err := a.server.Stop(); err != nil {
+			a.logger.Warn("server stop before restart failed: %v", err)
+		}
+	}
+
+	binaryPath, err := a.resolveLlamaBinary()
+	if err != nil {
+		return err
+	}
+
+	threads := a.cfg.Server.Threads
+	if threads == 0 {
+		threads = hardware.RecommendThreads(a.hw.CPUCores)
+	}
+	gpuLayers := a.cfg.Server.GPULayers
+	if gpuLayers == -1 {
+		gpuLayers = hardware.RecommendGPULayers(a.hw)
+	}
+	ctxSize := hardware.RecommendCtxSize(a.hw.FreeRAM, a.cfg.Server.CtxSize)
+
+	err = a.server.Start(server.Config{
+		BinaryPath: binaryPath,
+		ModelPath:  model.FilePath,
+		Host:       a.cfg.Server.Host,
+		Port:       a.cfg.Server.Port,
+		CtxSize:    ctxSize,
+		Threads:    threads,
+		GPULayers:  gpuLayers,
+		BatchSize:  a.cfg.Server.BatchSize,
+		ExtraArgs:  a.cfg.Server.ExtraArgs,
+	}, a.serverLogPath())
+	if err != nil {
+		return err
+	}
+
+	chatCfg := chat.EngineConfig{
+		Temperature:   a.cfg.Generation.Temperature,
+		TopP:          a.cfg.Generation.TopP,
+		TopK:          a.cfg.Generation.TopK,
+		RepeatPenalty: a.cfg.Generation.RepeatPenalty,
+		MaxTokens:     a.cfg.Generation.MaxTokens,
+	}
+	a.engine = chat.NewEngine(a.server.Port(), chatCfg, a.tmplEng)
+
+	a.currentModel = model.Filename
+	a.uiModel.SetModelInfo(model.Filename, a.tmplEng.Template().Name)
+	a.uiModel.ShowLoading()
+	a.waitServerReadyAsync()
+	return nil
 }
 
 func (a *App) sendUI(msg tea.Msg) {
@@ -302,7 +401,52 @@ func (a *App) handleModelSwitch(index int) {
 		return
 	}
 	a.logger.Info("switching model to %s", a.modelList[index].Filename)
-	// Implementation: stop server, restart with new model
+	if err := a.restartServerForModel(a.modelList[index]); err != nil {
+		a.logger.Error("model switch failed: %v", err)
+		a.sendUI(ui.StreamErrorMsg{Err: err})
+	}
+}
+
+func (a *App) handleApplySettings(s ui.SettingsUpdate) {
+	a.cfg.Model.ModelsDir = s.ModelsPath
+	a.cfg.Generation.Temperature = s.Temperature
+	a.cfg.Generation.TopP = s.TopP
+	a.cfg.Generation.TopK = s.TopK
+	a.cfg.Generation.RepeatPenalty = s.RepeatPenalty
+	a.cfg.Generation.MaxTokens = s.MaxTokens
+	a.cfg.UI.FontSize = s.FontSize
+	a.llamaPathOverride = s.LlamaPath
+
+	if err := config.Save(a.cfg); err != nil {
+		a.logger.Warn("save config failed: %v", err)
+	}
+
+	a.uiModel.SetFontSize(s.FontSize)
+
+	resolvedModelsPath := config.ResolveModelsDir(s.ModelsPath)
+	a.uiModel.SetRuntimePaths(s.LlamaPath, resolvedModelsPath)
+
+	list, err := models.ScanModels(resolvedModelsPath)
+	if err != nil {
+		a.sendUI(ui.StreamErrorMsg{Err: err})
+		return
+	}
+	if len(list) == 0 {
+		a.sendUI(ui.StreamErrorMsg{Err: fmt.Errorf("no models found in %s", resolvedModelsPath)})
+		return
+	}
+
+	a.modelList = list
+	a.uiModel.SetModels(list)
+
+	idx := s.SelectedModel
+	if idx < 0 || idx >= len(list) {
+		idx = 0
+	}
+
+	if err := a.restartServerForModel(list[idx]); err != nil {
+		a.sendUI(ui.StreamErrorMsg{Err: err})
+	}
 }
 
 // Shutdown performs cleanup.

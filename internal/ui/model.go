@@ -1,10 +1,12 @@
 package ui
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -21,12 +23,33 @@ const (
 	OverlayTemplatePicker
 	OverlayWelcome
 	OverlayLoading
+	OverlaySettings
+)
+
+type UIMode int
+
+const (
+	ModeStartup UIMode = iota
+	ModeChat
 )
 
 // ChatMessage represents a displayed chat message.
 type ChatMessage struct {
 	Role    string
 	Content string
+}
+
+// SettingsUpdate carries user-edited settings from the settings overlay.
+type SettingsUpdate struct {
+	LlamaPath     string
+	ModelsPath    string
+	FontSize      int
+	Temperature   float64
+	TopP          float64
+	TopK          int
+	RepeatPenalty float64
+	MaxTokens     int
+	SelectedModel int
 }
 
 // Model is the root Bubble Tea model.
@@ -47,6 +70,7 @@ type Model struct {
 	// State
 	width, height int
 	streaming     bool
+	mode          UIMode
 	showOverlay   OverlayType
 	err           error
 	messages      []ChatMessage
@@ -54,6 +78,22 @@ type Model struct {
 	lastRender    time.Time
 	ready         bool
 	serverReady   bool
+	fontSize      int
+
+	// Startup/Settings data
+	ramInfo          string
+	gpuInfo          string
+	llamaPath        string
+	modelsPath       string
+	temperature      float64
+	topP             float64
+	topK             int
+	repeatPenalty    float64
+	maxTokens        int
+	settingsInputs   []textinput.Model
+	settingsField    int
+	settingsEditing  bool
+	settingsModelIdx int
 
 	// Models
 	availableModels []models.ModelInfo
@@ -64,6 +104,7 @@ type Model struct {
 	onQuit        func()
 	onNewChat     func()
 	onModelSwitch func(int)
+	onApplySettings func(SettingsUpdate)
 }
 
 // NewModel creates the root UI model.
@@ -80,12 +121,21 @@ func NewModel(metricsCollector *metrics.Collector) Model {
 	sp.Style = SpinnerStyle
 
 	return Model{
-		keys:       DefaultKeyMap(),
-		textarea:   ta,
-		spinner:    sp,
-		metrics:    metricsCollector,
-		messages:   []ChatMessage{},
-		lastRender: time.Now(),
+		keys:          DefaultKeyMap(),
+		textarea:      ta,
+		spinner:       sp,
+		metrics:       metricsCollector,
+		messages:      []ChatMessage{},
+		lastRender:    time.Now(),
+		mode:          ModeStartup,
+		fontSize:      2,
+		llamaPath:     "runtime/llama.cpp",
+		modelsPath:    "runtime/models",
+		temperature:   0.7,
+		topP:          0.9,
+		topK:          40,
+		repeatPenalty: 1.1,
+		maxTokens:     2048,
 	}
 }
 
@@ -97,10 +147,55 @@ func (m *Model) SetCallbacks(onSend func(string), onQuit func(), onNewChat func(
 	m.onModelSwitch = onModelSwitch
 }
 
+// SetApplySettingsCallback sets the callback for settings updates.
+func (m *Model) SetApplySettingsCallback(onApply func(SettingsUpdate)) {
+	m.onApplySettings = onApply
+}
+
 // SetModelInfo sets the current model display info.
 func (m *Model) SetModelInfo(name string, templateName string) {
 	m.modelName = name
 	m.templateName = templateName
+}
+
+// SetStartupInfo sets hardware summary used by startup screen.
+func (m *Model) SetStartupInfo(totalRAM, freeRAM uint64, gpuEnabled bool) {
+	m.ramInfo = fmt.Sprintf("RAM available: %.1f GB / %.1f GB", float64(freeRAM)/(1024*1024*1024), float64(totalRAM)/(1024*1024*1024))
+	if gpuEnabled {
+		m.gpuInfo = "GPU: enabled"
+	} else {
+		m.gpuInfo = "GPU: not detected"
+	}
+}
+
+// SetRuntimePaths sets runtime path values shown in settings.
+func (m *Model) SetRuntimePaths(llamaPath, modelsPath string) {
+	if llamaPath != "" {
+		m.llamaPath = llamaPath
+	}
+	if modelsPath != "" {
+		m.modelsPath = modelsPath
+	}
+}
+
+// SetGenerationSettings sets generation settings shown in settings.
+func (m *Model) SetGenerationSettings(temperature, topP float64, topK int, repeatPenalty float64, maxTokens int) {
+	m.temperature = temperature
+	m.topP = topP
+	m.topK = topK
+	m.repeatPenalty = repeatPenalty
+	m.maxTokens = maxTokens
+}
+
+// SetFontSize sets UI font scale (terminal-friendly approximation).
+func (m *Model) SetFontSize(size int) {
+	if size < 1 {
+		size = 1
+	}
+	if size > 4 {
+		size = 4
+	}
+	m.fontSize = size
 }
 
 // SetModels sets the available models.
@@ -127,6 +222,36 @@ func (m *Model) ShowLoading() {
 // SetError sets the current UI error message.
 func (m *Model) SetError(err error) {
 	m.err = err
+}
+
+func (m *Model) openSettings() {
+	m.settingsEditing = false
+	m.settingsField = 0
+	m.settingsModelIdx = m.selectedModel
+	m.settingsInputs = make([]textinput.Model, 8)
+
+	newInput := func(value string) textinput.Model {
+		ti := textinput.New()
+		ti.SetValue(value)
+		ti.CharLimit = 2048
+		ti.Width = maxInt(18, m.width-30)
+		return ti
+	}
+
+	m.settingsInputs[0] = newInput(m.llamaPath)
+	m.settingsInputs[1] = newInput(m.modelsPath)
+	m.settingsInputs[2] = newInput(fmt.Sprintf("%d", m.fontSize))
+	m.settingsInputs[3] = newInput(fmt.Sprintf("%.2f", m.temperature))
+	m.settingsInputs[4] = newInput(fmt.Sprintf("%.2f", m.topP))
+	m.settingsInputs[5] = newInput(fmt.Sprintf("%d", m.topK))
+	m.settingsInputs[6] = newInput(fmt.Sprintf("%.2f", m.repeatPenalty))
+	m.settingsInputs[7] = newInput(fmt.Sprintf("%d", m.maxTokens))
+	m.showOverlay = OverlaySettings
+}
+
+func (m *Model) closeSettings() {
+	m.settingsEditing = false
+	m.showOverlay = OverlayNone
 }
 
 // AddChatMessage adds a message to the chat view.

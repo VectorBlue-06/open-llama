@@ -43,7 +43,8 @@ Download the llama-server binary from [llama.cpp releases](https://github.com/gg
 |-----|--------|
 | `Enter` | Send message |
 | `Shift+Enter` | New line in input |
-| `Esc` | Cancel streaming / close overlay |
+| `Tab` | Open settings menu |
+| `Esc` | Open settings menu / cancel stream / close overlay |
 | `Ctrl+N` | New conversation |
 | `Ctrl+M` | Open model picker |
 | `Ctrl+T` | Open template picker |
@@ -52,6 +53,29 @@ Download the llama-server binary from [llama.cpp releases](https://github.com/gg
 | `Ctrl+C` | Quit |
 | `↑/↓` | Scroll chat |
 | `PgUp/PgDn` | Fast scroll |
+
+## Startup Screen
+
+At startup, OpenLlama opens with a centered launcher screen that shows:
+
+- available RAM
+- GPU availability
+- selected model
+- a centered prompt/search input
+
+Type your first prompt and press `Enter` to switch into normal chat mode (bottom input + chat history view).
+
+## Settings Menu
+
+Open the floating settings menu with `Tab` (or `Esc` when not streaming). Use `↑/↓` to move and `Enter` to edit/apply.
+
+Available settings:
+
+- llama.cpp path
+- models path
+- font size
+- selected model
+- `temperature`, `top_p`, `top_k`, `repeat_penalty`, `max_tokens`
 
 ## CLI Flags
 

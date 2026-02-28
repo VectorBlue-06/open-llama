@@ -58,6 +58,7 @@ type UIConfig struct {
 	RenderThrottleMs int    `json:"render_throttle_ms"`
 	ShowMetrics      bool   `json:"show_metrics"`
 	ShowTimestamps   bool   `json:"show_timestamps"`
+	FontSize         int    `json:"font_size"`
 }
 
 type SessionConfig struct {
@@ -99,6 +100,7 @@ func Defaults() *Config {
 			RenderThrottleMs: 40,
 			ShowMetrics:      true,
 			ShowTimestamps:   false,
+			FontSize:         2,
 		},
 		Session: SessionConfig{
 			AutoSave:    false,

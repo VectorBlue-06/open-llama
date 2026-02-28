@@ -28,7 +28,8 @@
         "theme": "default",
         "render_throttle_ms": 40,
         "show_metrics": true,
-        "show_timestamps": false
+        "show_timestamps": false,
+        "font_size": 2
     },
     "session": {
         "auto_save": false,

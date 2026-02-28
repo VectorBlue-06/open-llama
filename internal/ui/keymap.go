@@ -7,6 +7,7 @@ type KeyMap struct {
 	Send           key.Binding
 	NewLine        key.Binding
 	NewChat        key.Binding
+	Settings       key.Binding
 	ModelPicker    key.Binding
 	TemplatePicker key.Binding
 	SaveSession    key.Binding
@@ -38,6 +39,10 @@ func DefaultKeyMap() KeyMap {
 		NewChat: key.NewBinding(
 			key.WithKeys("ctrl+n"),
 			key.WithHelp("ctrl+n", "new chat"),
+		),
+		Settings: key.NewBinding(
+			key.WithKeys("tab"),
+			key.WithHelp("tab", "settings"),
 		),
 		ModelPicker: key.NewBinding(
 			key.WithKeys("ctrl+m"),
@@ -93,7 +98,7 @@ func DefaultKeyMap() KeyMap {
 		),
 		Tab: key.NewBinding(
 			key.WithKeys("tab"),
-			key.WithHelp("tab", "focus"),
+			key.WithHelp("tab", "settings"),
 		),
 		Rescan: key.NewBinding(
 			key.WithKeys("r"),

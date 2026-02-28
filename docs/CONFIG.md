@@ -43,7 +43,8 @@ OpenLlama stores its configuration in `~/.openllama/config.json`.
         "theme": "default",
         "render_throttle_ms": 40,
         "show_metrics": true,
-        "show_timestamps": false
+        "show_timestamps": false,
+        "font_size": 2
     },
     "session": {
         "auto_save": false,
@@ -91,6 +92,16 @@ OpenLlama stores its configuration in `~/.openllama/config.json`.
 |-------|------|---------|-------------|
 | `default` | string | `"chatml"` | Template name (chatml, llama2, llama3, alpaca, minimal). |
 | `system_prompt` | string | (see above) | System prompt for all conversations. |
+
+### UI
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `theme` | string | `default` | Color theme preset. |
+| `render_throttle_ms` | int | `40` | UI update throttle interval. |
+| `show_metrics` | bool | `true` | Show runtime metrics in top bar. |
+| `show_timestamps` | bool | `false` | Show message timestamps. |
+| `font_size` | int | `2` | Terminal-friendly text scale used by chat rendering. |
 
 ### Session
 
