@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 )
 
 // Load reads the config from the default config path.
@@ -52,6 +53,9 @@ func Save(cfg *Config) error {
 func SaveTo(cfg *Config, path string) error {
 	data, err := json.MarshalIndent(cfg, "", "    ")
 	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err
 	}
 	return os.WriteFile(path, data, 0600)

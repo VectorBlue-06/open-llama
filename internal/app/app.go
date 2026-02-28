@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -24,18 +25,18 @@ import (
 
 // App is the main application controller.
 type App struct {
-	cfg      *config.Config
-	logger   *utils.Logger
-	hw       *hardware.HardwareInfo
-	server   *server.Server
-	engine   *chat.Engine
-	tmplEng  *templates.Engine
-	ctxMgr   *ctx.Manager
-	metrics  *metrics.Collector
-	uiModel  ui.Model
-	program  *tea.Program
-	modelList []models.ModelInfo
-	currentModel string
+	cfg               *config.Config
+	logger            *utils.Logger
+	hw                *hardware.HardwareInfo
+	server            *server.Server
+	engine            *chat.Engine
+	tmplEng           *templates.Engine
+	ctxMgr            *ctx.Manager
+	metrics           *metrics.Collector
+	uiModel           ui.Model
+	program           *tea.Program
+	modelList         []models.ModelInfo
+	currentModel      string
 	llamaPathOverride string
 }
 
@@ -111,7 +112,12 @@ func (a *App) Run() error {
 		a.cfg.Generation.MaxTokens,
 	)
 	a.uiModel.SetFontSize(a.cfg.UI.FontSize)
-	a.uiModel.SetRuntimePaths(filepath.Join(config.PrimaryRuntimeDir(), "llama.cpp"), modelsDir)
+	llamaPath := strings.TrimSpace(a.cfg.Model.LlamaPath)
+	if llamaPath == "" {
+		llamaPath = filepath.Join(config.PrimaryRuntimeDir(), "llama.cpp")
+	}
+	a.llamaPathOverride = llamaPath
+	a.uiModel.SetRuntimePaths(llamaPath, modelsDir)
 	a.uiModel.SetCallbacks(
 		a.handleSend,
 		a.handleQuit,
@@ -408,24 +414,7 @@ func (a *App) handleModelSwitch(index int) {
 }
 
 func (a *App) handleApplySettings(s ui.SettingsUpdate) {
-	a.cfg.Model.ModelsDir = s.ModelsPath
-	a.cfg.Generation.Temperature = s.Temperature
-	a.cfg.Generation.TopP = s.TopP
-	a.cfg.Generation.TopK = s.TopK
-	a.cfg.Generation.RepeatPenalty = s.RepeatPenalty
-	a.cfg.Generation.MaxTokens = s.MaxTokens
-	a.cfg.UI.FontSize = s.FontSize
-	a.llamaPathOverride = s.LlamaPath
-
-	if err := config.Save(a.cfg); err != nil {
-		a.logger.Warn("save config failed: %v", err)
-	}
-
-	a.uiModel.SetFontSize(s.FontSize)
-
 	resolvedModelsPath := config.ResolveModelsDir(s.ModelsPath)
-	a.uiModel.SetRuntimePaths(s.LlamaPath, resolvedModelsPath)
-
 	list, err := models.ScanModels(resolvedModelsPath)
 	if err != nil {
 		a.sendUI(ui.StreamErrorMsg{Err: err})
@@ -444,8 +433,30 @@ func (a *App) handleApplySettings(s ui.SettingsUpdate) {
 		idx = 0
 	}
 
+	llamaPath := strings.TrimSpace(s.LlamaPath)
+	if llamaPath == "" {
+		llamaPath = filepath.Join(config.PrimaryRuntimeDir(), "llama.cpp")
+	}
+	a.llamaPathOverride = llamaPath
+	a.uiModel.SetRuntimePaths(llamaPath, resolvedModelsPath)
+
+	a.cfg.Model.ModelsDir = s.ModelsPath
+	a.cfg.Model.LlamaPath = llamaPath
+	a.cfg.Model.Default = list[idx].Filename
+	a.cfg.Generation.Temperature = s.Temperature
+	a.cfg.Generation.TopP = s.TopP
+	a.cfg.Generation.TopK = s.TopK
+	a.cfg.Generation.RepeatPenalty = s.RepeatPenalty
+	a.cfg.Generation.MaxTokens = s.MaxTokens
+
 	if err := a.restartServerForModel(list[idx]); err != nil {
 		a.sendUI(ui.StreamErrorMsg{Err: err})
+		return
+	}
+
+	if err := config.Save(a.cfg); err != nil {
+		a.logger.Warn("save config failed: %v", err)
+		a.sendUI(ui.StreamErrorMsg{Err: fmt.Errorf("save config failed: %w", err)})
 	}
 }
 

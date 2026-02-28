@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/VectorBlue-06/open-llama/internal/models"
@@ -33,6 +34,11 @@ func (m Model) View() string {
 			return m.viewWithOverlay(m.viewSettingsOverlay(), m.viewStartup())
 		}
 		return m.viewWithOverlay(m.viewSettingsOverlay(), m.viewChat())
+	case OverlaySettingsConfirm:
+		if m.mode == ModeStartup {
+			return m.viewWithOverlay(m.viewSettingsConfirmOverlay(), m.viewStartup())
+		}
+		return m.viewWithOverlay(m.viewSettingsConfirmOverlay(), m.viewChat())
 	}
 
 	return m.viewChat()
@@ -41,7 +47,11 @@ func (m Model) View() string {
 func (m Model) viewChat() string {
 	topBar := m.renderTopBar()
 	chatView := m.viewport.View()
-	input := InputStyle.Width(m.width - 4).Render(m.textarea.View())
+	inputStyle := InputStyle
+	if m.inputMode == InputModeNormal {
+		inputStyle = InputNormalStyle
+	}
+	input := inputStyle.Width(m.width - 4).Render(m.textarea.View())
 	statusBar := m.renderStatusBar()
 
 	return lipgloss.JoinVertical(lipgloss.Left,
@@ -86,12 +96,19 @@ func (m Model) renderTopBar() string {
 }
 
 func (m Model) renderStatusBar() string {
-	hints := "Esc Menu │ Tab Settings │ Shift+Enter New Line │ Ctrl+Q Quit"
+	modeLabel := "INSERT"
+	if m.inputMode == InputModeNormal {
+		modeLabel = "NORMAL"
+	}
+	hints := fmt.Sprintf("Mode: %s │ Tab toggle mode │ Ctrl+M models │ Enter send │ Shift/Ctrl+Enter newline", modeLabel)
+	if m.inputMode == InputModeNormal {
+		hints = fmt.Sprintf("Mode: %s │ j/↑ scroll up │ k/↓ scroll down │ Tab toggle mode │ Ctrl+M models", modeLabel)
+	}
 	if m.streaming {
-		hints = "Esc Cancel │ Streaming..."
+		hints = fmt.Sprintf("Mode: %s │ Esc cancel │ Streaming...", modeLabel)
 	}
 	if m.mode == ModeStartup {
-		hints = "Enter Start Chat │ Tab Settings │ Esc Menu │ Ctrl+Q Quit"
+		hints = fmt.Sprintf("Mode: %s │ Tab toggle mode │ Ctrl+M models │ Enter start", modeLabel)
 	}
 	if m.err != nil {
 		hints = ErrorStyle.Render(fmt.Sprintf("Error: %v", m.err))
@@ -101,18 +118,19 @@ func (m Model) renderStatusBar() string {
 
 func (m *Model) updateViewportContent() {
 	var sb strings.Builder
+	contentWidth := maxInt(20, m.viewport.Width-6)
 
 	for _, msg := range m.messages {
 		switch msg.Role {
 		case "user":
 			sb.WriteString(UserMsgStyle.Render("You:"))
 			sb.WriteString("\n")
-			sb.WriteString(m.scaleText(UserTextStyle, msg.Content))
+			sb.WriteString(m.scaleText(UserTextStyle, renderPlainContent(msg.Content, contentWidth)))
 			sb.WriteString("\n\n")
 		case "assistant":
 			sb.WriteString(AssistantMsgStyle.Render("Assistant:"))
 			sb.WriteString("\n")
-			sb.WriteString(m.scaleText(AssistantTextStyle, msg.Content))
+			sb.WriteString(m.scaleText(AssistantTextStyle, renderMessageContent(msg.Content, contentWidth)))
 			sb.WriteString("\n\n")
 		}
 	}
@@ -121,7 +139,7 @@ func (m *Model) updateViewportContent() {
 	if m.streaming && m.streamBuffer != "" {
 		sb.WriteString(AssistantMsgStyle.Render("Assistant:"))
 		sb.WriteString("\n")
-		sb.WriteString(m.scaleText(AssistantTextStyle, m.streamBuffer))
+		sb.WriteString(m.scaleText(AssistantTextStyle, renderMessageContent(m.streamBuffer, contentWidth)))
 		sb.WriteString("█\n")
 	}
 
@@ -177,7 +195,11 @@ func (m Model) viewStartup() string {
 		selectedModel = "No model selected"
 	}
 
-	searchBox := InputStyle.Width(maxInt(30, m.width/2)).Render(m.textarea.View())
+	inputStyle := InputStyle
+	if m.inputMode == InputModeNormal {
+		inputStyle = InputNormalStyle
+	}
+	searchBox := inputStyle.Width(maxInt(30, m.width/2)).Render(m.textarea.View())
 
 	content := lipgloss.JoinVertical(lipgloss.Center,
 		lipgloss.NewStyle().Bold(true).Foreground(ColorPrimary).Render("Welcome to OpenLlama"),
@@ -220,11 +242,11 @@ func (m Model) viewModelPicker() string {
 			DimStyle.Render(models.FormatSize(model.FileSize)),
 		)
 		sb.WriteString(style.Render(line))
-		sb.WriteString("\n")
+		sb.WriteString("\n\n")
 	}
 
 	sb.WriteString("\n")
-	sb.WriteString(DimStyle.Render("↑/↓ select  │  Enter confirm  │  Esc cancel"))
+	sb.WriteString(DimStyle.Render("↑/↓ move  │  Enter/→ select  │  Esc/← back"))
 
 	return sb.String()
 }
@@ -258,7 +280,6 @@ func (m Model) viewSettingsOverlay() string {
 	labels := []string{
 		"llama.cpp path",
 		"models path",
-		"font size",
 		"temperature",
 		"top_p",
 		"top_k",
@@ -271,7 +292,7 @@ func (m Model) viewSettingsOverlay() string {
 		if m.settingsField == i {
 			prefix = "▸ "
 		}
-		sb.WriteString(prefix + label + ": " + m.settingsInputs[i].View() + "\n")
+		sb.WriteString(prefix + label + ": " + m.settingsInputs[i].View() + "\n\n")
 	}
 
 	modelLine := "(none)"
@@ -279,18 +300,38 @@ func (m Model) viewSettingsOverlay() string {
 		modelLine = m.availableModels[m.settingsModelIdx].Filename
 	}
 	prefix := "  "
-	if m.settingsField == 8 {
+	if m.settingsField == 7 {
 		prefix = "▸ "
 	}
-	sb.WriteString(prefix + "selected model: " + modelLine + "\n")
+	sb.WriteString(prefix + "selected model: " + modelLine + "\n\n")
 
 	prefix = "  "
-	if m.settingsField == 9 {
+	if m.settingsField == 8 {
 		prefix = "▸ "
 	}
 	sb.WriteString(prefix + "Apply and close\n\n")
 
 	sb.WriteString(DimStyle.Render("↑/↓ move  │  Enter edit/apply  │  ←/→ model  │  Esc close"))
+	return sb.String()
+}
+
+func (m Model) viewSettingsConfirmOverlay() string {
+	var sb strings.Builder
+	sb.WriteString(lipgloss.NewStyle().Bold(true).Foreground(ColorPrimary).Render("Confirm settings update"))
+	sb.WriteString("\n\n")
+	sb.WriteString("Save changes before closing?\n\n")
+
+	discardPrefix := "  "
+	savePrefix := "  "
+	if m.settingsConfirmChoice == 0 {
+		discardPrefix = "▸ "
+	} else {
+		savePrefix = "▸ "
+	}
+
+	sb.WriteString(discardPrefix + "Keep old settings\n\n")
+	sb.WriteString(savePrefix + "Save new settings\n\n")
+	sb.WriteString(DimStyle.Render("←/→ switch  │  Enter confirm  │  Esc back"))
 	return sb.String()
 }
 
@@ -300,7 +341,10 @@ func (m Model) viewWithOverlay(overlay string, background ...string) string {
 		bg = background[0]
 	}
 
-	overlayRendered := WelcomeStyle.Render(overlay)
+	overlayWidth := maxInt(40, m.width/2)
+	overlayRendered := WelcomeStyle.
+		Width(overlayWidth).
+		Render(overlay)
 
 	return bg + "\n" + lipgloss.Place(m.width, m.height,
 		lipgloss.Center, lipgloss.Center,
@@ -316,4 +360,86 @@ func (m Model) scaleText(style lipgloss.Style, text string) string {
 		return rendered + "\n"
 	}
 	return rendered
+}
+
+func renderMessageContent(content string, width int) string {
+	segments := splitThinkSegments(content)
+	if len(segments) == 0 {
+		return ""
+	}
+
+	parts := make([]string, 0, len(segments))
+	for _, segment := range segments {
+		if strings.TrimSpace(segment.text) == "" {
+			continue
+		}
+		if segment.thinking {
+			parts = append(parts, renderThinking(segment.text))
+			continue
+		}
+		parts = append(parts, renderGlamourMarkdown(segment.text, width))
+	}
+	return strings.Join(parts, "\n")
+}
+
+type thinkSegment struct {
+	text     string
+	thinking bool
+}
+
+func splitThinkSegments(content string) []thinkSegment {
+	remaining := content
+	segments := []thinkSegment{}
+	for {
+		lower := strings.ToLower(remaining)
+		start := strings.Index(lower, "<think>")
+		if start == -1 {
+			segments = append(segments, thinkSegment{text: remaining, thinking: false})
+			break
+		}
+		if start > 0 {
+			segments = append(segments, thinkSegment{text: remaining[:start], thinking: false})
+		}
+		remaining = remaining[start+len("<think>"):]
+		lower = strings.ToLower(remaining)
+		end := strings.Index(lower, "</think>")
+		if end == -1 {
+			segments = append(segments, thinkSegment{text: remaining, thinking: true})
+			break
+		}
+		segments = append(segments, thinkSegment{text: remaining[:end], thinking: true})
+		remaining = remaining[end+len("</think>"):]
+	}
+	return segments
+}
+
+func renderGlamourMarkdown(content string, width int) string {
+	renderer, err := glamour.NewTermRenderer(
+		glamour.WithAutoStyle(),
+		glamour.WithWordWrap(maxInt(20, width)),
+	)
+	if err != nil {
+		return renderPlainContent(content, width)
+	}
+	rendered, err := renderer.Render(content)
+	if err != nil {
+		return renderPlainContent(content, width)
+	}
+	return strings.TrimRight(rendered, "\n")
+}
+
+func renderPlainContent(content string, width int) string {
+	return lipgloss.NewStyle().Width(maxInt(20, width)).Render(content)
+}
+
+func renderThinking(content string) string {
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(strings.ToLower(trimmed), "thinking:") {
+			trimmed = strings.TrimSpace(trimmed[len("thinking:"):])
+		}
+		lines[i] = DimStyle.Render(trimmed)
+	}
+	return strings.Join(lines, "\n")
 }

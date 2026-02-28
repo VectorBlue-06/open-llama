@@ -44,6 +44,12 @@ var (
 			BorderForeground(ColorPrimary).
 			Padding(0, 1)
 
+	InputNormalStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(ColorHighlight).
+			Foreground(ColorHighlight).
+			Padding(0, 1)
+
 	ChatViewStyle = lipgloss.NewStyle().
 			Padding(1, 2)
 

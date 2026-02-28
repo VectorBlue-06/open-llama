@@ -2,6 +2,7 @@
     "version": 1,
     "model": {
         "default": "",
+        "llama_path": "runtime/llama.cpp",
         "models_dir": "runtime/models"
     },
     "server": {

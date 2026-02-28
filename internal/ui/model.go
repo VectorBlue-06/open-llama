@@ -2,7 +2,10 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
@@ -24,6 +27,7 @@ const (
 	OverlayWelcome
 	OverlayLoading
 	OverlaySettings
+	OverlaySettingsConfirm
 )
 
 type UIMode int
@@ -31,6 +35,13 @@ type UIMode int
 const (
 	ModeStartup UIMode = iota
 	ModeChat
+)
+
+type InputMode int
+
+const (
+	InputModeInsert InputMode = iota
+	InputModeNormal
 )
 
 // ChatMessage represents a displayed chat message.
@@ -43,7 +54,6 @@ type ChatMessage struct {
 type SettingsUpdate struct {
 	LlamaPath     string
 	ModelsPath    string
-	FontSize      int
 	Temperature   float64
 	TopP          float64
 	TopK          int
@@ -79,6 +89,7 @@ type Model struct {
 	ready         bool
 	serverReady   bool
 	fontSize      int
+	inputMode     InputMode
 
 	// Startup/Settings data
 	ramInfo          string
@@ -94,6 +105,10 @@ type Model struct {
 	settingsField    int
 	settingsEditing  bool
 	settingsModelIdx int
+	settingsConfirmChoice int
+	settingsOriginalValues []string
+	settingsOriginalModel int
+	openModelPickerAfterSettings bool
 
 	// Models
 	availableModels []models.ModelInfo
@@ -113,7 +128,7 @@ func NewModel(metricsCollector *metrics.Collector) Model {
 	ta.Placeholder = "Type your message..."
 	ta.Focus()
 	ta.CharLimit = 0
-	ta.SetHeight(3)
+	ta.SetHeight(1)
 	ta.ShowLineNumbers = false
 
 	sp := spinner.New()
@@ -129,6 +144,7 @@ func NewModel(metricsCollector *metrics.Collector) Model {
 		lastRender:    time.Now(),
 		mode:          ModeStartup,
 		fontSize:      2,
+		inputMode:     InputModeInsert,
 		llamaPath:     "runtime/llama.cpp",
 		modelsPath:    "runtime/models",
 		temperature:   0.7,
@@ -228,7 +244,7 @@ func (m *Model) openSettings() {
 	m.settingsEditing = false
 	m.settingsField = 0
 	m.settingsModelIdx = m.selectedModel
-	m.settingsInputs = make([]textinput.Model, 8)
+	m.settingsInputs = make([]textinput.Model, 7)
 
 	newInput := func(value string) textinput.Model {
 		ti := textinput.New()
@@ -240,23 +256,45 @@ func (m *Model) openSettings() {
 
 	m.settingsInputs[0] = newInput(m.llamaPath)
 	m.settingsInputs[1] = newInput(m.modelsPath)
-	m.settingsInputs[2] = newInput(fmt.Sprintf("%d", m.fontSize))
-	m.settingsInputs[3] = newInput(fmt.Sprintf("%.2f", m.temperature))
-	m.settingsInputs[4] = newInput(fmt.Sprintf("%.2f", m.topP))
-	m.settingsInputs[5] = newInput(fmt.Sprintf("%d", m.topK))
-	m.settingsInputs[6] = newInput(fmt.Sprintf("%.2f", m.repeatPenalty))
-	m.settingsInputs[7] = newInput(fmt.Sprintf("%d", m.maxTokens))
+	m.settingsInputs[2] = newInput(fmt.Sprintf("%.2f", m.temperature))
+	m.settingsInputs[3] = newInput(fmt.Sprintf("%.2f", m.topP))
+	m.settingsInputs[4] = newInput(fmt.Sprintf("%d", m.topK))
+	m.settingsInputs[5] = newInput(fmt.Sprintf("%.2f", m.repeatPenalty))
+	m.settingsInputs[6] = newInput(fmt.Sprintf("%d", m.maxTokens))
+	m.settingsConfirmChoice = 0
+	m.settingsOriginalValues = []string{
+		m.settingsInputs[0].Value(),
+		m.settingsInputs[1].Value(),
+		m.settingsInputs[2].Value(),
+		m.settingsInputs[3].Value(),
+		m.settingsInputs[4].Value(),
+		m.settingsInputs[5].Value(),
+		m.settingsInputs[6].Value(),
+	}
+	m.settingsOriginalModel = m.settingsModelIdx
 	m.showOverlay = OverlaySettings
 }
 
 func (m *Model) closeSettings() {
 	m.settingsEditing = false
+	m.settingsOriginalValues = nil
 	m.showOverlay = OverlayNone
+}
+
+func (m *Model) setInputMode(mode InputMode) {
+	m.inputMode = mode
+	if mode == InputModeNormal {
+		m.textarea.Blur()
+		m.textarea.Placeholder = "NORMAL MODE"
+		return
+	}
+	m.textarea.Focus()
+	m.textarea.Placeholder = "Type your message..."
 }
 
 // AddChatMessage adds a message to the chat view.
 func (m *Model) AddChatMessage(role, content string) {
-	m.messages = append(m.messages, ChatMessage{Role: role, Content: content})
+	m.messages = append(m.messages, ChatMessage{Role: role, Content: sanitizeUIContent(content)})
 }
 
 // SetStreaming sets the streaming state.
@@ -266,7 +304,7 @@ func (m *Model) SetStreaming(streaming bool) {
 
 // AppendStreamContent appends content to the current streaming message.
 func (m *Model) AppendStreamContent(content string) {
-	m.streamBuffer += content
+	m.streamBuffer += sanitizeUIContent(content)
 }
 
 // FinishStream finishes the current stream and adds the message.
@@ -274,6 +312,51 @@ func (m *Model) FinishStream() string {
 	content := m.streamBuffer
 	m.streamBuffer = ""
 	return content
+}
+
+func sanitizeUIContent(text string) string {
+	if text == "" {
+		return text
+	}
+
+	if !utf8.ValidString(text) {
+		text = strings.ToValidUTF8(text, "")
+	}
+
+	text = stripANSIEscape(text)
+
+	return strings.Map(func(r rune) rune {
+		if r == '\n' || r == '\t' || r == '\r' {
+			return r
+		}
+		if unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, text)
+}
+
+func stripANSIEscape(s string) string {
+	if !strings.ContainsRune(s, '\x1b') {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] == 0x1b {
+			i++
+			for i < len(s) {
+				c := s[i]
+				if c >= '@' && c <= '~' {
+					break
+				}
+				i++
+			}
+			continue
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
 }
 
 // Init initializes the model (Bubble Tea interface).

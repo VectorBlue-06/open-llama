@@ -15,6 +15,7 @@ type Config struct {
 
 type ModelConfig struct {
 	Default   string `json:"default"`
+	LlamaPath string `json:"llama_path"`
 	ModelsDir string `json:"models_dir"`
 }
 
@@ -73,6 +74,7 @@ func Defaults() *Config {
 		Version: 1,
 		Model: ModelConfig{
 			Default:   "",
+			LlamaPath: "runtime/llama.cpp",
 			ModelsDir: "runtime/models",
 		},
 		Server: ServerConfig{

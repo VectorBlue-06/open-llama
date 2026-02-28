@@ -36,6 +36,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.Height = viewportHeight
 		}
 		m.textarea.SetWidth(textareaWidth)
+		m.adjustTextareaHeight()
 		for i := range m.settingsInputs {
 			m.settingsInputs[i].Width = maxInt(18, m.width-30)
 		}
@@ -58,7 +59,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.AddChatMessage("assistant", content)
 		m.streaming = false
-		m.textarea.Focus()
+		m.setInputMode(InputModeInsert)
+		m.adjustTextareaHeight()
 		m.updateViewportContent()
 
 		if msg.Timings != nil && m.metrics != nil {
@@ -72,7 +74,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case StreamErrorMsg:
 		m.streaming = false
 		m.err = msg.Err
-		m.textarea.Focus()
+		m.setInputMode(InputModeInsert)
+		m.adjustTextareaHeight()
 
 	case ServerReadyMsg:
 		m.serverReady = true
@@ -102,8 +105,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if m.showOverlay == OverlaySettings {
+	if m.showOverlay == OverlaySettings || m.showOverlay == OverlaySettingsConfirm {
 		return m.handleSettingsKey(msg)
+	}
+	if m.showOverlay == OverlayModelPicker {
+		return m.handleModelPickerKey(msg)
 	}
 
 	switch {
@@ -120,7 +126,7 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if content != "" {
 				m.AddChatMessage("assistant", content+" [interrupted]")
 			}
-			m.textarea.Focus()
+			m.setInputMode(InputModeInsert)
 			m.updateViewportContent()
 		} else if m.showOverlay != OverlayNone {
 			m.showOverlay = OverlayNone
@@ -129,22 +135,42 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case key.Matches(msg, m.keys.Settings), key.Matches(msg, m.keys.Tab):
+	case key.Matches(msg, m.keys.ModelPicker), key.Matches(msg, m.keys.Tab):
+		if key.Matches(msg, m.keys.Tab) {
+			if m.inputMode == InputModeInsert {
+				m.setInputMode(InputModeNormal)
+			} else {
+				m.setInputMode(InputModeInsert)
+			}
+			return m, nil
+		}
+		if !m.streaming {
+			if len(m.availableModels) == 0 {
+				m.err = fmt.Errorf("no models available")
+				return m, nil
+			}
+			m.openModelPickerAfterSettings = false
+			m.showOverlay = OverlayModelPicker
+		}
+		return m, nil
+
+	case key.Matches(msg, m.keys.Settings):
 		if !m.streaming {
 			m.openSettings()
 		}
 		return m, nil
 
 	case key.Matches(msg, m.keys.NewLine):
-		if m.streaming || m.showOverlay != OverlayNone {
+		if m.streaming || m.showOverlay != OverlayNone || m.inputMode != InputModeInsert {
 			return m, nil
 		}
 		value := m.textarea.Value()
 		m.textarea.SetValue(value + "\n")
+		m.adjustTextareaHeight()
 		return m, nil
 
 	case key.Matches(msg, m.keys.Send):
-		if m.streaming || m.showOverlay != OverlayNone {
+		if m.streaming || m.showOverlay != OverlayNone || m.inputMode != InputModeInsert {
 			return m, nil
 		}
 		text := strings.TrimSpace(m.textarea.Value())
@@ -155,6 +181,7 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.mode = ModeChat
 		}
 		m.textarea.Reset()
+		m.adjustTextareaHeight()
 		m.AddChatMessage("user", text)
 		m.streaming = true
 		m.streamBuffer = ""
@@ -174,12 +201,6 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.updateViewportContent()
 		return m, nil
 
-	case key.Matches(msg, m.keys.ModelPicker):
-		if !m.streaming {
-			m.showOverlay = OverlayModelPicker
-		}
-		return m, nil
-
 	case key.Matches(msg, m.keys.TemplatePicker):
 		if !m.streaming {
 			m.showOverlay = OverlayTemplatePicker
@@ -187,10 +208,6 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	default:
-		// Handle overlay-specific keys
-		if m.showOverlay == OverlayModelPicker {
-			return m.handleModelPickerKey(msg)
-		}
 		if m.showOverlay == OverlayWelcome {
 			if key.Matches(msg, m.keys.Rescan) {
 				// Trigger rescan
@@ -198,28 +215,121 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+		if m.showOverlay == OverlayNone && m.inputMode == InputModeNormal {
+			switch msg.String() {
+			case "j":
+				m.viewport.LineUp(1)
+				return m, nil
+			case "k":
+				m.viewport.LineDown(1)
+				return m, nil
+			case "up":
+				m.viewport.LineUp(1)
+				return m, nil
+			case "down":
+				m.viewport.LineDown(1)
+				return m, nil
+			case "pgup":
+				m.viewport.HalfViewUp()
+				return m, nil
+			case "pgdown":
+				m.viewport.HalfViewDown()
+				return m, nil
+			}
+			return m, nil
+		}
+
 		// Pass to textarea
 		var cmd tea.Cmd
 		m.textarea, cmd = m.textarea.Update(msg)
+		m.adjustTextareaHeight()
 		return m, cmd
 	}
 }
 
 func (m *Model) handleSettingsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	const modelFieldIndex = 8
-	const applyFieldIndex = 9
+	if m.showOverlay == OverlaySettingsConfirm {
+		switch msg.String() {
+		case "left", "h", "right", "l":
+			if m.settingsConfirmChoice == 0 {
+				m.settingsConfirmChoice = 1
+			} else {
+				m.settingsConfirmChoice = 0
+			}
+			return m, nil
+		case "esc":
+			m.showOverlay = OverlaySettings
+			return m, nil
+		case "enter":
+			if m.settingsConfirmChoice == 1 {
+				if err := m.applySettings(); err != nil {
+					m.err = err
+					m.showOverlay = OverlaySettings
+					return m, nil
+				}
+			}
+			openModelPicker := m.openModelPickerAfterSettings
+			m.openModelPickerAfterSettings = false
+			m.closeSettings()
+			if openModelPicker {
+				m.showOverlay = OverlayModelPicker
+			}
+			return m, nil
+		}
+		return m, nil
+	}
+
+	const modelFieldIndex = 7
+	const applyFieldIndex = 8
 
 	if key.Matches(msg, m.keys.Cancel) {
 		if m.settingsEditing {
 			m.settingsEditing = false
 			return m, nil
 		}
+		if m.settingsDirty() {
+			m.settingsConfirmChoice = 0
+			m.showOverlay = OverlaySettingsConfirm
+			return m, nil
+		}
 		m.closeSettings()
 		return m, nil
 	}
 
-	if key.Matches(msg, m.keys.Settings) || key.Matches(msg, m.keys.Tab) {
+	if key.Matches(msg, m.keys.Settings) || key.Matches(msg, m.keys.ModelPicker) || key.Matches(msg, m.keys.Tab) {
+		if key.Matches(msg, m.keys.ModelPicker) {
+			m.openModelPickerAfterSettings = true
+			if m.settingsDirty() {
+				m.settingsConfirmChoice = 0
+				m.showOverlay = OverlaySettingsConfirm
+				return m, nil
+			}
+			m.closeSettings()
+			m.showOverlay = OverlayModelPicker
+			return m, nil
+		}
+		if key.Matches(msg, m.keys.Tab) {
+			if m.settingsDirty() {
+				m.settingsConfirmChoice = 0
+				m.showOverlay = OverlaySettingsConfirm
+				return m, nil
+			}
+			m.openModelPickerAfterSettings = false
+			m.closeSettings()
+			if m.inputMode == InputModeInsert {
+				m.setInputMode(InputModeNormal)
+			} else {
+				m.setInputMode(InputModeInsert)
+			}
+			return m, nil
+		}
+		if m.settingsDirty() {
+			m.settingsConfirmChoice = 0
+			m.showOverlay = OverlaySettingsConfirm
+			return m, nil
+		}
 		m.closeSettings()
+		m.openModelPickerAfterSettings = false
 		return m, nil
 	}
 
@@ -264,11 +374,8 @@ func (m *Model) handleSettingsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if m.settingsField == applyFieldIndex {
-			if err := m.applySettings(); err != nil {
-				m.err = err
-				return m, nil
-			}
-			m.closeSettings()
+			m.settingsConfirmChoice = 1
+			m.showOverlay = OverlaySettingsConfirm
 			return m, nil
 		}
 	}
@@ -292,34 +399,29 @@ func (m *Model) applySettings() error {
 		return n, nil
 	}
 
-	fontSize, err := parseInt(m.settingsInputs[2].Value(), "font size")
+	temp, err := parseFloat(m.settingsInputs[2].Value(), "temperature")
 	if err != nil {
 		return err
 	}
-	temp, err := parseFloat(m.settingsInputs[3].Value(), "temperature")
+	topP, err := parseFloat(m.settingsInputs[3].Value(), "top_p")
 	if err != nil {
 		return err
 	}
-	topP, err := parseFloat(m.settingsInputs[4].Value(), "top_p")
+	topK, err := parseInt(m.settingsInputs[4].Value(), "top_k")
 	if err != nil {
 		return err
 	}
-	topK, err := parseInt(m.settingsInputs[5].Value(), "top_k")
+	repeatPenalty, err := parseFloat(m.settingsInputs[5].Value(), "repeat penalty")
 	if err != nil {
 		return err
 	}
-	repeatPenalty, err := parseFloat(m.settingsInputs[6].Value(), "repeat penalty")
-	if err != nil {
-		return err
-	}
-	maxTokens, err := parseInt(m.settingsInputs[7].Value(), "max tokens")
+	maxTokens, err := parseInt(m.settingsInputs[6].Value(), "max tokens")
 	if err != nil {
 		return err
 	}
 
 	m.llamaPath = strings.TrimSpace(m.settingsInputs[0].Value())
 	m.modelsPath = strings.TrimSpace(m.settingsInputs[1].Value())
-	m.SetFontSize(fontSize)
 	m.temperature = temp
 	m.topP = topP
 	m.topK = topK
@@ -333,7 +435,6 @@ func (m *Model) applySettings() error {
 		m.onApplySettings(SettingsUpdate{
 			LlamaPath:     m.llamaPath,
 			ModelsPath:    m.modelsPath,
-			FontSize:      m.fontSize,
 			Temperature:   m.temperature,
 			TopP:          m.topP,
 			TopK:          m.topK,
@@ -347,6 +448,12 @@ func (m *Model) applySettings() error {
 }
 
 func (m *Model) handleModelPickerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if len(m.availableModels) == 0 {
+		m.err = fmt.Errorf("no models available")
+		m.showOverlay = OverlayNone
+		return m, nil
+	}
+
 	switch msg.String() {
 	case "up", "k":
 		if m.selectedModel > 0 {
@@ -356,13 +463,38 @@ func (m *Model) handleModelPickerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.selectedModel < len(m.availableModels)-1 {
 			m.selectedModel++
 		}
-	case "enter":
+	case "enter", "right", "l":
 		if m.onModelSwitch != nil {
 			m.onModelSwitch(m.selectedModel)
+			m.showOverlay = OverlayLoading
+			return m, nil
 		}
-		m.showOverlay = OverlayLoading
-	case "esc":
+		m.showOverlay = OverlayNone
+	case "esc", "left", "h":
 		m.showOverlay = OverlayNone
 	}
 	return m, nil
+}
+
+func (m *Model) settingsDirty() bool {
+	if len(m.settingsOriginalValues) != len(m.settingsInputs) || len(m.settingsOriginalValues) == 0 {
+		return false
+	}
+	for i := range m.settingsInputs {
+		if strings.TrimSpace(m.settingsInputs[i].Value()) != strings.TrimSpace(m.settingsOriginalValues[i]) {
+			return true
+		}
+	}
+	return m.settingsModelIdx != m.settingsOriginalModel
+}
+
+func (m *Model) adjustTextareaHeight() {
+	lines := strings.Count(m.textarea.Value(), "\n") + 1
+	if lines < 1 {
+		lines = 1
+	}
+	if lines > 5 {
+		lines = 5
+	}
+	m.textarea.SetHeight(lines)
 }

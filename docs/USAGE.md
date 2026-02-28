@@ -46,7 +46,7 @@ Download the llama-server binary from [llama.cpp releases](https://github.com/gg
 | `Tab` | Open settings menu |
 | `Esc` | Open settings menu / cancel stream / close overlay |
 | `Ctrl+N` | New conversation |
-| `Ctrl+M` | Open model picker |
+| `Ctrl+M` / `F2` | Open model picker |
 | `Ctrl+T` | Open template picker |
 | `Ctrl+S` | Save session |
 | `Ctrl+Q` | Quit |
@@ -89,7 +89,7 @@ Available settings:
 
 ## Model Switching
 
-Press `Ctrl+M` to open the model picker. Use arrow keys to select a model and press `Enter`. The server will restart with the new model.
+Press `Ctrl+M` (or `F2`) to open the model picker. Use arrow keys to select a model and press `Enter`. The server will restart with the new model.
 
 ## Templates
 
