@@ -106,10 +106,10 @@ func (m *Model) updateViewportContent() {
 	}
 
 	// Show streaming content
-	if m.streaming && m.streamBuffer.Len() > 0 {
+	if m.streaming && m.streamBuffer != "" {
 		sb.WriteString(AssistantMsgStyle.Render("Assistant:"))
 		sb.WriteString("\n")
-		sb.WriteString(AssistantTextStyle.Render(m.streamBuffer.String()))
+		sb.WriteString(AssistantTextStyle.Render(m.streamBuffer))
 		sb.WriteString("█\n")
 	}
 

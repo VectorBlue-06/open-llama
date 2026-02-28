@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -51,7 +50,7 @@ type Model struct {
 	showOverlay   OverlayType
 	err           error
 	messages      []ChatMessage
-	streamBuffer  strings.Builder
+	streamBuffer  string
 	lastRender    time.Time
 	ready         bool
 	serverReady   bool
@@ -142,13 +141,13 @@ func (m *Model) SetStreaming(streaming bool) {
 
 // AppendStreamContent appends content to the current streaming message.
 func (m *Model) AppendStreamContent(content string) {
-	m.streamBuffer.WriteString(content)
+	m.streamBuffer += content
 }
 
 // FinishStream finishes the current stream and adds the message.
 func (m *Model) FinishStream() string {
-	content := m.streamBuffer.String()
-	m.streamBuffer.Reset()
+	content := m.streamBuffer
+	m.streamBuffer = ""
 	return content
 }
 

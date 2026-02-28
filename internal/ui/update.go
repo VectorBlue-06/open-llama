@@ -133,7 +133,7 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.textarea.Reset()
 		m.AddChatMessage("user", text)
 		m.streaming = true
-		m.streamBuffer.Reset()
+		m.streamBuffer = ""
 		m.updateViewportContent()
 
 		if m.onSend != nil {

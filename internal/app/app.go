@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -120,7 +121,6 @@ func (a *App) Run() error {
 	if err != nil {
 		a.logger.Error("server binary not found: %v", err)
 		a.uiModel.SetError(err)
-		a.uiModel.ShowWelcome()
 		return a.runUI()
 	}
 
@@ -186,6 +186,17 @@ func (a *App) Run() error {
 
 func (a *App) runUI() error {
 	a.program = tea.NewProgram(a.uiModel, tea.WithAltScreen())
+
+	if a.server != nil && a.server.IsRunning() {
+		go func() {
+			if err := a.server.WaitForReady(120 * time.Second); err != nil {
+				a.sendUI(ui.ServerFailedMsg{Err: err})
+				return
+			}
+			a.sendUI(ui.ServerReadyMsg{})
+		}()
+	}
+
 	_, err := a.program.Run()
 	a.program = nil
 	return err
