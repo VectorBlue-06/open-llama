@@ -17,20 +17,20 @@ Runs 100% locally — no internet, no telemetry, no cloud.
 
 ---
 
-## ✨ Features
+##  Features
 
-- 🚀 **Instant startup** — TUI ready in under 200ms
-- 🔒 **Fully offline** — zero network requests, zero telemetry
-- 🎯 **Zero config** — auto-detects hardware, picks optimal settings
-- 💬 **Streaming responses** — smooth token-by-token output
-- 🧠 **Smart context** — automatic sliding-window management
-- 🎨 **Beautiful TUI** — colors, spinners, keyboard-driven interface
-- 🔄 **Hot-swap models** — switch models without restarting
-- ⚡ **GPU accelerated** — CUDA and Metal support out of the box
-- 🧭 **Startup launcher** — centered prompt/search with device + model info
-- ⚙️ **Floating settings menu** — edit model path, llama.cpp path, font size, and generation parameters
+-  **Instant startup** — TUI ready in under 200ms
+-  **Fully offline** — zero network requests, zero telemetry
+-  **Zero config** — auto-detects hardware, picks optimal settings
+-  **Streaming responses** — smooth token-by-token output
+-  **Smart context** — automatic sliding-window management
+-  **Beautiful TUI** — colors, spinners, keyboard-driven interface
+-  **Hot-swap models** — switch models without restarting
+-  **GPU accelerated** — CUDA and Metal support out of the box
+-  **Startup launcher** — centered prompt/search with device + model info
+-  **Floating settings menu** — edit model path, llama.cpp path, font size, and generation parameters
 
-## 🚀 Quick Start
+##  Quick Start
 
 ```bash
 # 1. Place a GGUF model
@@ -56,7 +56,7 @@ cp your-model.gguf runtime/models/
 | `Ctrl+T` | Switch template |
 | `Ctrl+Q` | Quit |
 
-## 🧩 Startup + Settings Flow
+##  Startup + Settings Flow
 
 - On launch, OpenLlama shows a centered startup screen with:
 	- available RAM
@@ -72,7 +72,7 @@ cp your-model.gguf runtime/models/
 	- generation params (`temperature`, `top_p`, `top_k`, `repeat_penalty`, `max_tokens`)
 	- selected model
 
-## 🔧 Build from Source
+##  Build from Source
 
 ```bash
 git clone https://github.com/VectorBlue-06/open-llama.git
@@ -80,7 +80,7 @@ cd open-llama
 make build
 ```
 
-## 📖 Documentation
+##  Documentation
 
 For complete documentation including configuration, templates, architecture, and troubleshooting:
 
@@ -92,7 +92,7 @@ Quick links:
 - [Prompt Templates](docs/TEMPLATES.md)
 - [Implementation Plan](PLAN.md)
 
-## 📋 System Requirements
+##  System Requirements
 
 | Resource | Minimum | Recommended |
 |----------|---------|-------------|
@@ -100,13 +100,13 @@ Quick links:
 | CPU | 4 cores | 8+ cores |
 | GPU | Optional | NVIDIA CUDA / Apple Metal |
 
-## 🛡️ Privacy
+##  Privacy
 
 - **Zero telemetry** — no data ever leaves your machine
 - **No analytics** — no usage tracking of any kind
 - **Localhost only** — server never exposed to network
 - **No cloud** — everything runs locally
 
-## 📄 License
+##  License
 
 [MIT](LICENSE) — Use it however you want.
