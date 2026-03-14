@@ -17,7 +17,16 @@ Runs 100% locally — no internet, no telemetry, no cloud.
 
 ---
 
+## Fun little conversation with a small model I tried running locally on my laptop
+
+<img src="assets/chat1.png" width="100%">
+<img src="assets/chat2.png" width="100%">
+<img src="assets/chat3.png" width="100%">
+<img src="assets/chat4.png" width="100%">
+
 ## ✨ Features
+
+<img src="assets/main.png" width="100%">
 
 - 🚀 **Instant startup** — TUI ready in under 200ms
 - 🔒 **Fully offline** — zero network requests, zero telemetry
