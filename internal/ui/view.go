@@ -100,9 +100,9 @@ func (m Model) renderStatusBar() string {
 	if m.inputMode == InputModeNormal {
 		modeLabel = "NORMAL"
 	}
-	hints := fmt.Sprintf("Mode: %s │ Tab toggle mode │ Ctrl+O models │ Enter send │ Alt+Enter/Ctrl+J newline", modeLabel)
+	hints := fmt.Sprintf("Mode: %s │ Tab toggle mode │ Ctrl+M models │ Enter send │ Shift/Ctrl+Enter newline", modeLabel)
 	if m.inputMode == InputModeNormal {
-		hints = fmt.Sprintf("Mode: %s │ j/↑ scroll up │ k/↓ scroll down │ Tab toggle mode │ Ctrl+O models", modeLabel)
+		hints = fmt.Sprintf("Mode: %s │ j/↑ scroll up │ k/↓ scroll down │ Tab toggle mode │ Ctrl+M models", modeLabel)
 	}
 	if m.streaming {
 		hints = fmt.Sprintf("Mode: %s │ Esc cancel │ Streaming...", modeLabel)
@@ -130,11 +130,7 @@ func (m *Model) updateViewportContent() {
 		case "assistant":
 			sb.WriteString(AssistantMsgStyle.Render("Assistant:"))
 			sb.WriteString("\n")
-			content := renderMessageContent(msg.Content, contentWidth)
-			if m.fontSize >= 3 {
-				content += "\n"
-			}
-			sb.WriteString(content)
+			sb.WriteString(m.scaleText(AssistantTextStyle, renderMessageContent(msg.Content, contentWidth)))
 			sb.WriteString("\n\n")
 		}
 	}
@@ -143,11 +139,7 @@ func (m *Model) updateViewportContent() {
 	if m.streaming && m.streamBuffer != "" {
 		sb.WriteString(AssistantMsgStyle.Render("Assistant:"))
 		sb.WriteString("\n")
-		content := renderMessageContent(m.streamBuffer, contentWidth)
-		if m.fontSize >= 3 {
-			content += "\n"
-		}
-		sb.WriteString(content)
+		sb.WriteString(m.scaleText(AssistantTextStyle, renderMessageContent(m.streamBuffer, contentWidth)))
 		sb.WriteString("█\n")
 	}
 
@@ -423,7 +415,7 @@ func splitThinkSegments(content string) []thinkSegment {
 
 func renderGlamourMarkdown(content string, width int) string {
 	renderer, err := glamour.NewTermRenderer(
-		glamour.WithStandardStyle("dark"),
+		glamour.WithAutoStyle(),
 		glamour.WithWordWrap(maxInt(20, width)),
 	)
 	if err != nil {

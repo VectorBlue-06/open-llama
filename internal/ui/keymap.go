@@ -33,8 +33,8 @@ func DefaultKeyMap() KeyMap {
 			key.WithHelp("enter", "send"),
 		),
 		NewLine: key.NewBinding(
-			key.WithKeys("shift+enter", "ctrl+enter", "alt+enter", "ctrl+j"),
-			key.WithHelp("alt+enter/ctrl+j", "newline"),
+			key.WithKeys("shift+enter", "ctrl+enter", "alt+enter"),
+			key.WithHelp("shift/ctrl+enter", "newline"),
 		),
 		NewChat: key.NewBinding(
 			key.WithKeys("ctrl+n"),
@@ -45,8 +45,8 @@ func DefaultKeyMap() KeyMap {
 			key.WithHelp("esc", "settings"),
 		),
 		ModelPicker: key.NewBinding(
-			key.WithKeys("ctrl+o", "f2", "alt+m"),
-			key.WithHelp("ctrl+o/f2", "models"),
+			key.WithKeys("ctrl+m", "f2", "alt+m"),
+			key.WithHelp("ctrl+m/f2", "models"),
 		),
 		TemplatePicker: key.NewBinding(
 			key.WithKeys("ctrl+t"),
