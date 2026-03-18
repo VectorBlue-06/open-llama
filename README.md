@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🦙 OpenLlama
+# 🦙 Nano-Llama
 
 **Local AI in your terminal. Fast, private, zero setup.**
 
